@@ -1,6 +1,6 @@
 <div align="center">
   
-# Lucent Code 💎
+# Lucent 💎
 
 _Crystal clear code insights_ 
 
