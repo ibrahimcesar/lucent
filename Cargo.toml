@@ -1,13 +1,19 @@
 [package]
-name = "lucent"
-version = "0.1.0"
+name = "lucent-code"
+version = "0.0.1"
 edition = "2021"
-authors = ["Your Name <your.email@example.com>"]
-license = "MIT OR Apache-2.0"
+authors = ["Your Name <email@ibrahimcesar.com>"]
+license = "MIT"
 description = "Crystal clear code insights - Fast code metrics analyzer"
-homepage = "https://github.com/yourusername/lucent"
-repository = "https://github.com/yourusername/lucent"
-keywords = ["metrics", "code-quality", "complexity", "analysis", "static-analysis"]
+homepage = "https://github.com/ibrahimcesar/lucent"
+repository = "https://github.com/ibrahimcesar/lucent"
+keywords = [
+    "metrics",
+    "code-quality",
+    "complexity",
+    "analysis",
+    "static-analysis",
+]
 categories = ["development-tools", "command-line-utilities"]
 readme = "README.md"
 
