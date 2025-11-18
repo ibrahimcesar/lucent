@@ -1,8 +1,12 @@
+<div align="center">
+  
 # Lucent 💎
 
-> Crystal clear code insights
+_Crystal clear code insights_ 
 
 **Lucent** is a fast, extensible code metrics analyzer built in Rust. It helps you understand code quality, complexity, and maintainability across multiple programming languages.
+
+</div>
 
 ## ✨ Features (Planned)
 
