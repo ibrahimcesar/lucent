@@ -1,0 +1,14 @@
+[ignore]
+patterns = ["*.test.rs", "examples/", "benches/"]
+use_lucentignore = true
+use_gitignore = true
+
+[thresholds]
+max_cyclomatic_complexity = 15.0
+max_nesting_depth = 4
+min_maintainability_index = 65.0
+max_function_length = 50
+
+[quality_gates]
+enabled = true
+warn_only = false

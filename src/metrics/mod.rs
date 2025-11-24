@@ -86,6 +86,12 @@ pub struct FileMetrics {
     pub code_smells: Vec<CodeSmell>,
     /// Maintainability Index (0-100, higher is better)
     pub maintainability_index: f64,
+    /// Halstead Volume (program size)
+    pub halstead_volume: f64,
+    /// Halstead Difficulty (comprehension difficulty)
+    pub halstead_difficulty: f64,
+    /// Halstead Effort (time to understand)
+    pub halstead_effort: f64,
 }
 
 /// Aggregated metrics for a project
@@ -253,11 +259,15 @@ impl FileMetrics {
             0.0
         };
 
-        // Calculate Maintainability Index
+        // Calculate Halstead metrics
+        let (halstead_volume, halstead_difficulty, halstead_effort) =
+            Self::calculate_halstead_metrics(content, &language);
+
+        // Calculate Maintainability Index using real Halstead volume
         let maintainability_index = Self::calculate_maintainability_index(
             code_lines,
             cyclomatic_complexity,
-            entropy,
+            halstead_volume,
             comment_ratio,
         );
 
@@ -280,6 +290,9 @@ impl FileMetrics {
             high_quality_comments,
             code_smells,
             maintainability_index,
+            halstead_volume,
+            halstead_difficulty,
+            halstead_effort,
         })
     }
 
@@ -1021,13 +1034,129 @@ impl FileMetrics {
         smells
     }
 
+    /// Calculate Halstead complexity metrics
+    ///
+    /// Halstead metrics measure program complexity based on operators and operands.
+    ///
+    /// Returns: (volume, difficulty, effort)
+    /// - Volume: Program size (bits needed to represent the program)
+    /// - Difficulty: How difficult the program is to write/understand
+    /// - Effort: Mental effort required to develop/understand
+    fn calculate_halstead_metrics(content: &str, language: &Language) -> (f64, f64, f64) {
+        use std::collections::HashSet;
+
+        let mut operators = HashSet::new();
+        let mut operands = HashSet::new();
+        let mut total_operators = 0;
+        let mut total_operands = 0;
+
+        // Language-specific operator patterns based on language name
+        let op_patterns = match language.name {
+            "Rust" => vec![
+                "=>", "->", "::", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=",
+                "==", "!=", "<=", ">=", "&&", "||", "<<", ">>",
+                "+", "-", "*", "/", "%", "&", "|", "^", "!", "=", "<", ">",
+                "?", ":", ";", ",", ".", "(", ")", "[", "]", "{", "}",
+                "fn", "let", "mut", "if", "else", "for", "while", "loop", "match", "return",
+            ],
+            "Python" => vec![
+                "+=", "-=", "*=", "/=", "%=", "**=", "//=", "&=", "|=", "^=", "<<=", ">>=",
+                "==", "!=", "<=", ">=", "and", "or", "not", "in", "is",
+                "+", "-", "*", "/", "%", "**", "//", "&", "|", "^", "~", "=", "<", ">",
+                ":", ";", ",", ".", "(", ")", "[", "]", "{", "}",
+                "def", "class", "if", "elif", "else", "for", "while", "return", "yield",
+            ],
+            "JavaScript" | "TypeScript" => vec![
+                "===", "!==", "==", "!=", "<=", ">=", "&&", "||", "++", "--",
+                "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", ">>>=",
+                "+", "-", "*", "/", "%", "&", "|", "^", "!", "=", "<", ">", "?",
+                ":", ";", ",", ".", "(", ")", "[", "]", "{", "}",
+                "function", "const", "let", "var", "if", "else", "for", "while", "return",
+            ],
+            "Go" => vec![
+                ":=", "==", "!=", "<=", ">=", "&&", "||", "++", "--", "<-",
+                "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", "&^=",
+                "+", "-", "*", "/", "%", "&", "|", "^", "!", "=", "<", ">",
+                ":", ";", ",", ".", "(", ")", "[", "]", "{", "}",
+                "func", "if", "else", "for", "switch", "case", "return", "go", "defer",
+            ],
+            "Java" | "Kotlin" | "Scala" => vec![
+                "==", "!=", "<=", ">=", "&&", "||", "++", "--",
+                "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", ">>>=",
+                "+", "-", "*", "/", "%", "&", "|", "^", "!", "=", "<", ">", "?",
+                ":", ";", ",", ".", "(", ")", "[", "]", "{", "}",
+                "class", "if", "else", "for", "while", "return", "new", "void",
+            ],
+            _ => vec![
+                "==", "!=", "<=", ">=", "&&", "||",
+                "+", "-", "*", "/", "%", "&", "|", "^", "!", "=", "<", ">",
+                ":", ";", ",", ".", "(", ")", "[", "]", "{", "}",
+                "if", "else", "for", "while", "return",
+            ],
+        };
+
+        // Simple tokenization
+        let tokens: Vec<&str> = content.split_whitespace().collect();
+
+        for token in tokens {
+            let mut found_op = false;
+
+            // Check for operators
+            for op in &op_patterns {
+                if token.contains(op) {
+                    operators.insert(op.to_string());
+                    total_operators += 1;
+                    found_op = true;
+                    break;
+                }
+            }
+
+            // If not an operator, count as operand (identifier, number, string)
+            if !found_op && !token.is_empty() {
+                // Filter out pure punctuation and very short tokens
+                if token.chars().any(|c| c.is_alphanumeric()) && token.len() > 1 {
+                    operands.insert(token.to_string());
+                    total_operands += 1;
+                }
+            }
+        }
+
+        // Halstead metrics formulas
+        let n1 = operators.len() as f64; // Unique operators
+        let n2 = operands.len() as f64;  // Unique operands
+        let N1 = total_operators as f64; // Total operators
+        let N2 = total_operands as f64;  // Total operands
+
+        // Avoid division by zero
+        if n1 == 0.0 || n2 == 0.0 || N1 == 0.0 || N2 == 0.0 {
+            return (0.0, 0.0, 0.0);
+        }
+
+        // Program vocabulary
+        let vocabulary = n1 + n2;
+
+        // Program length
+        let length = N1 + N2;
+
+        // Volume = length * log2(vocabulary)
+        let volume = length * vocabulary.log2();
+
+        // Difficulty = (n1 / 2) * (N2 / n2)
+        let difficulty = (n1 / 2.0) * (N2 / n2);
+
+        // Effort = Difficulty * Volume
+        let effort = difficulty * volume;
+
+        (volume, difficulty, effort)
+    }
+
     /// Calculate Maintainability Index
     ///
     /// The Maintainability Index (MI) is a metric that estimates how maintainable the code is.
     /// Formula: MI = max(0, (171 - 5.2 * ln(HV) - 0.23 * CC - 16.2 * ln(LOC)) * 100 / 171)
     ///
     /// Where:
-    /// - HV (Halstead Volume) is approximated using entropy
+    /// - HV is Halstead Volume
     /// - CC is Cyclomatic Complexity
     /// - LOC is Lines of Code
     ///
@@ -1040,21 +1169,18 @@ impl FileMetrics {
     fn calculate_maintainability_index(
         code_lines: usize,
         cyclomatic_complexity: usize,
-        entropy: f64,
+        halstead_volume: f64,
         comment_ratio: f64,
     ) -> f64 {
         // Avoid log of zero or negative
         let loc = code_lines.max(1) as f64;
         let cc = cyclomatic_complexity.max(1) as f64;
-
-        // Use entropy as a proxy for Halstead Volume
-        // Higher entropy = more complex vocabulary = higher volume
-        let halstead_volume = entropy * loc;
+        let hv = halstead_volume.max(1.0);
 
         // Calculate raw MI using the standard formula
         // MI = 171 - 5.2 * ln(HV) - 0.23 * CC - 16.2 * ln(LOC)
         let raw_mi = 171.0
-            - 5.2 * halstead_volume.ln()
+            - 5.2 * hv.ln()
             - 0.23 * cc
             - 16.2 * loc.ln();
 

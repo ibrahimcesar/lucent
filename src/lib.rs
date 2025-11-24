@@ -66,6 +66,12 @@ pub mod threshold;
 /// Plugin system for extensibility
 pub mod plugin;
 
+/// Caching layer for performance
+pub mod cache;
+
+/// Custom rules engine
+pub mod rules;
+
 // Re-exports for convenience
 pub use config::Config;
 pub use language::{Language, LANGUAGES};
@@ -74,6 +80,7 @@ pub use output::{display_metrics, OutputFormat};
 pub use scanner::{Scanner, SourceFile};
 pub use snapshot::{Snapshot, SnapshotManager, SnapshotComparison};
 pub use threshold::{ThresholdConfig, ValidationResult, ThresholdViolation, Severity};
+pub use rules::{RuleEngine, PatternRule, AstRule, AstMatcher, MetricRule, MetricType, Violation};
 
 #[cfg(test)]
 mod tests {

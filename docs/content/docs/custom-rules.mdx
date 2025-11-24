@@ -1,0 +1,740 @@
+---
+title: Custom Rules
+description: Define your own code quality rules with pattern matching, AST analysis, and custom metrics
+---
+
+# Custom Rules
+
+> **Status**: ✅ **Fully Implemented** - Pattern, AST, and Metric rules are available!
+
+Define custom code quality rules tailored to your team's standards and best practices.
+
+## Overview
+
+Custom rules extend Lucent's built-in analysis with team-specific quality checks:
+
+- **Pattern Rules**: Match code patterns with regex ✅
+- **AST Rules**: Analyze syntax tree structure ✅
+- **Metric Rules**: Set custom thresholds ✅
+- **Plugin Rules**: Write custom logic in Rust (via plugin system)
+
+## Quick Start
+
+### 1. Enable Custom Rules
+
+Add rules to your `.lucent.toml`:
+
+```toml
+[rules_config]
+enabled = true
+fail_on_error = true
+fail_on_warning = false
+
+[[rules]]
+name = "no-unwrap-in-production"
+description = "Disallow .unwrap() calls in production code"
+type = "pattern"
+pattern = '\\.unwrap\\('
+file_patterns = ["src/**/*.rs"]
+exclude_patterns = ["**/tests/**", "**/benches/**"]
+severity = "error"
+```
+
+### 2. Run Analysis
+
+```bash
+lucent src/ --config .lucent.toml
+```
+
+### 3. See Results
+
+```
+⚠️ Custom Rule Violations
+
+  src/main.rs:42:5
+    ✗ no-unwrap-in-production [ERROR]
+      Disallow .unwrap() calls in production code
+
+      41 | fn process_data(input: &str) -> Result<Data> {
+      42 |     let data = input.parse().unwrap();
+         |                             ^^^^^^^^^
+      43 |     Ok(data)
+
+      Suggestion: Use `?` operator or provide error context
+```
+
+---
+
+## Rule Types
+
+### Pattern Rules (Regex)
+
+Simple regex-based pattern matching:
+
+```toml
+[[rules]]
+name = "no-console-log"
+description = "Disallow console.log in production"
+type = "pattern"
+pattern = 'console\\.log\\('
+language = "JavaScript"
+severity = "warning"
+file_patterns = ["src/**/*.js", "src/**/*.ts"]
+exclude_patterns = ["**/*.test.js"]
+```
+
+**Use Cases**:
+- Forbidden function calls (`.unwrap()`, `panic!()`, `console.log()`)
+- Deprecated APIs
+- Coding style violations
+- Security patterns (hardcoded secrets, SQL injection)
+
+### AST Rules (Syntax Analysis)
+
+Analyze code structure using Abstract Syntax Trees:
+
+```toml
+[[rules]]
+name = "require-doc-comments"
+description = "Public functions must have documentation"
+type = "ast"
+language = "Rust"
+check = "pub_fn_without_docs"
+severity = "warning"
+```
+
+```toml
+[[rules]]
+name = "max-match-arms"
+description = "Limit match statement complexity"
+type = "ast"
+language = "Rust"
+max_match_arms = 10
+severity = "warning"
+```
+
+**Available AST Checks**:
+- `pub_fn_without_docs` - Public functions without documentation ✅
+- `fn_without_docs` - Any function without documentation ✅
+- `max_params` - Functions with too many parameters (specify `max_params`) ✅
+- `max_match_arms` - Match expressions with too many arms (specify `max_match_arms`) ✅
+- `max_nesting_depth` - Deep nesting beyond threshold (specify `max_nesting_depth`) ✅
+- `unhandled_result` - Results without proper error handling ✅
+
+**Use Cases**:
+- Missing documentation ✅
+- Function parameter complexity ✅
+- Complex match expressions ✅
+- Deep nesting detection ✅
+- Error handling analysis ✅
+- Function signature analysis ✅
+
+### Metric Rules (Thresholds) ✅
+
+Custom thresholds for code metrics:
+
+```toml
+[[rules]]
+name = "test-coverage-threshold"
+description = "Maintain test coverage above 80%"
+type = "metric"
+metric = "test_coverage"
+min_value = 80
+per_file = true
+severity = "error"
+```
+
+```toml
+[[rules]]
+name = "limit-dependencies"
+description = "Limit imports per file"
+type = "metric"
+metric = "import_count"
+max_value = 20
+severity = "warning"
+```
+
+**Available Metrics**:
+- `complexity` / `cyclomatic_complexity` - Cyclomatic complexity ✅
+- `cognitive_complexity` - Cognitive complexity (understandability) ✅
+- `nesting_depth` / `max_nesting_depth` - Maximum nesting depth ✅
+- `function_length` / `avg_function_length` - Average lines per function ✅
+- `file_size` / `total_lines` - Total lines in file ✅
+- `comment_ratio` - Percentage of comment lines (min/max) ✅
+- `code_density` - Percentage of code lines (min/max) ✅
+- `maintainability_index` / `maintainability` - MI score 0-100 (min) ✅
+- `halstead_volume` - Halstead program volume ✅
+- `halstead_difficulty` - Halstead comprehension difficulty ✅
+- `function_count` - Number of functions in file ✅
+- `todo_markers` / `todos` - Count of TODO/FIXME/HACK markers ✅
+
+### Plugin Rules (Custom Logic)
+
+Write custom rules in Rust for complex checks:
+
+```toml
+[[plugins]]
+name = "team-rules"
+path = "./team-rules/target/release/libteam_rules.so"
+
+[plugins.team-rules.config]
+severity = "warning"
+```
+
+See [Plugin Development Guide](./plugin-guide.mdx) for details.
+
+---
+
+## Configuration Reference
+
+### Rule Schema
+
+```toml
+[[rules]]
+# Required fields
+name = "rule-identifier"          # Unique rule ID
+description = "Human-readable description"
+type = "pattern"                   # pattern | ast | metric
+severity = "error"                 # error | warning | info
+
+# Type-specific fields
+pattern = 'regex'                  # For pattern rules
+language = "Rust"                  # Target language
+metric = "complexity"              # For metric rules
+max_value = 10                     # Threshold (metric rules)
+min_value = 0                      # Threshold (metric rules)
+
+# File filtering
+file_patterns = ["src/**/*.rs"]    # Include patterns (glob)
+exclude_patterns = ["**/tests/**"] # Exclude patterns (glob)
+
+# Optional
+per_file = true                    # Apply per-file vs project-wide
+suggestion = "Use ? instead"       # Auto-fix suggestion
+autofix = false                    # Enable auto-fix (future)
+```
+
+### Global Settings
+
+```toml
+[rules_config]
+enabled = true                     # Enable custom rules
+fail_on_error = true               # Exit code 1 on error violations
+fail_on_warning = false            # Exit code 1 on warnings
+max_violations = 100               # Stop after N violations
+parallel = true                    # Run rules in parallel
+```
+
+---
+
+## Examples
+
+### Rust Best Practices
+
+```toml
+[[rules]]
+name = "no-panic-in-lib"
+description = "Library code should not panic"
+type = "pattern"
+pattern = 'panic!\\('
+file_patterns = ["src/lib/**/*.rs"]
+severity = "error"
+
+[[rules]]
+name = "max-function-params"
+description = "Functions should have <= 5 parameters"
+type = "ast"
+max_params = 5
+severity = "warning"
+suggestion = "Consider using a struct for parameters"
+
+[[rules]]
+name = "limit-match-arms"
+description = "Match expressions should not be too complex"
+type = "ast"
+max_match_arms = 10
+language = "Rust"
+severity = "warning"
+suggestion = "Consider refactoring into smaller functions"
+
+[[rules]]
+name = "avoid-deep-nesting"
+description = "Avoid excessive nesting depth"
+type = "ast"
+max_nesting_depth = 4
+language = "Rust"
+severity = "warning"
+suggestion = "Extract nested logic into separate functions"
+
+[[rules]]
+name = "check-error-handling"
+description = "Results should be properly handled"
+type = "ast"
+check = "unhandled_result"
+language = "Rust"
+severity = "info"
+suggestion = "Use ? operator or handle the error explicitly"
+```
+
+### JavaScript/TypeScript
+
+```toml
+[[rules]]
+name = "no-var"
+description = "Use const/let instead of var"
+type = "pattern"
+pattern = '\\bvar\\b'
+language = "JavaScript"
+severity = "error"
+
+[[rules]]
+name = "async-await-required"
+description = "Promises must use async/await"
+type = "ast"
+check = "promise_without_await"
+severity = "warning"
+
+[[rules]]
+name = "max-file-complexity"
+description = "File complexity threshold"
+type = "metric"
+metric = "complexity"
+max_value = 50
+per_file = true
+severity = "warning"
+```
+
+### Python
+
+```toml
+[[rules]]
+name = "no-print-statements"
+description = "Use logging instead of print"
+type = "pattern"
+pattern = '\\bprint\\('
+language = "Python"
+severity = "warning"
+suggestion = "Use logger.info() instead"
+
+[[rules]]
+name = "type-hints-required"
+description = "Functions must have type hints"
+type = "ast"
+check = "function_without_types"
+severity = "info"
+```
+
+### Security Rules
+
+```toml
+[[rules]]
+name = "no-hardcoded-secrets"
+description = "Detect potential hardcoded secrets"
+type = "pattern"
+pattern = '(password|secret|api[_-]?key)\\s*=\\s*["\'][^"\']+["\']'
+severity = "error"
+
+[[rules]]
+name = "no-sql-injection"
+description = "Detect potential SQL injection"
+type = "pattern"
+pattern = 'execute\\(["\'].*\\+.*["\']\\)'
+severity = "error"
+
+[[rules]]
+name = "secure-random-required"
+description = "Use cryptographically secure random"
+type = "pattern"
+pattern = 'Math\\.random\\('
+language = "JavaScript"
+severity = "warning"
+suggestion = "Use crypto.randomBytes() instead"
+```
+
+---
+
+## CLI Usage
+
+### Test Rules Only
+
+```bash
+# Run only custom rules (skip built-in metrics)
+lucent src/ --rules-only
+
+# Test specific rule
+lucent src/ --rule no-unwrap-in-production
+```
+
+### Validate Configuration
+
+```bash
+# Check rule syntax
+lucent rules validate
+
+# List active rules
+lucent rules list
+
+# Show rule details
+lucent rules describe no-unwrap-in-production
+```
+
+### Test Rules on File
+
+```bash
+# Test all rules on single file
+lucent rules test src/main.rs
+
+# Test specific rule on file
+lucent rules test no-unwrap-in-production src/main.rs
+```
+
+---
+
+## Output Formats
+
+### CLI Output
+
+```
+⚠️ Custom Rule Violations
+
+  src/main.rs:42:5
+    ✗ no-unwrap-in-production [ERROR]
+      Disallow .unwrap() calls in production code
+
+      41 | fn process_data(input: &str) -> Result<Data> {
+      42 |     let data = input.parse().unwrap();
+         |                             ^^^^^^^^^
+      43 |     Ok(data)
+
+      Suggestion: Use `?` operator or provide error context
+
+  src/utils.rs:15:1
+    ⚠ require-doc-comments [WARNING]
+      Public functions must have documentation
+
+      14 |
+      15 | pub fn calculate(x: i32) -> i32 {
+         | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      16 |     x * 2
+
+      Suggestion: Add /// documentation comment
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 Custom Rules Summary
+  Total Violations: 12
+  ✗ Errors: 3
+  ⚠ Warnings: 8
+  ℹ Info: 1
+```
+
+### JSON Output
+
+```json
+{
+  "custom_violations": [
+    {
+      "rule": "no-unwrap-in-production",
+      "severity": "error",
+      "file": "src/main.rs",
+      "line": 42,
+      "column": 5,
+      "message": "Disallow .unwrap() calls in production code",
+      "suggestion": "Use `?` operator or provide error context",
+      "code_snippet": "let data = input.parse().unwrap();"
+    }
+  ],
+  "custom_rules_summary": {
+    "total_violations": 12,
+    "by_severity": {
+      "error": 3,
+      "warning": 8,
+      "info": 1
+    },
+    "by_rule": {
+      "no-unwrap-in-production": 3,
+      "require-doc-comments": 8,
+      "max-function-params": 1
+    }
+  }
+}
+```
+
+---
+
+## Integration
+
+### CI/CD Pipeline
+
+```yaml
+# .github/workflows/quality.yml
+name: Code Quality
+
+on: [pull_request]
+
+jobs:
+  custom-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Lucent
+        run: cargo install lucent-code
+
+      - name: Run Custom Rules
+        run: |
+          lucent src/ \
+            --config .lucent.toml \
+            --fail-on-error \
+            --format json > violations.json
+
+      - name: Upload Results
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: rule-violations
+          path: violations.json
+```
+
+### Pre-commit Hook
+
+```bash
+#!/bin/bash
+# .git/hooks/pre-commit
+
+echo "Running custom rules..."
+lucent $(git diff --cached --name-only) \
+  --config .lucent.toml \
+  --fail-on-error
+
+if [ $? -ne 0 ]; then
+  echo "❌ Custom rule violations found"
+  echo "Run 'lucent src/ --config .lucent.toml' for details"
+  exit 1
+fi
+```
+
+---
+
+## Rule Templates
+
+### Import Rule Presets
+
+```toml
+[rules]
+# Import pre-defined rule sets
+import_preset = "rust-strict"     # Strict Rust rules
+import_preset = "javascript-best" # JS best practices
+import_preset = "security-basic"  # Basic security checks
+
+# Override specific rules
+[rules.overrides]
+"no-unwrap-in-production" = { severity = "warning" }
+```
+
+### Available Presets
+
+- `rust-strict` - Strict Rust coding standards
+- `rust-relaxed` - Relaxed Rust guidelines
+- `javascript-best` - JS/TS best practices
+- `python-pep8` - Python PEP 8 compliance
+- `security-basic` - Basic security checks
+- `security-strict` - Comprehensive security rules
+
+---
+
+## Advanced Features
+
+### Auto-fix (Future)
+
+```toml
+[[rules]]
+name = "format-strings"
+type = "pattern"
+pattern = 'format!\\("\\{\\}"'
+autofix = true
+fix_command = "rustfmt --emit=stdout"
+severity = "info"
+```
+
+```bash
+# Apply auto-fixes
+lucent src/ --autofix
+
+# Preview fixes without applying
+lucent src/ --autofix --dry-run
+```
+
+### Machine Learning Rules (Future)
+
+```toml
+[[rules]]
+name = "detect-code-duplication"
+type = "ml"
+model = "code-similarity"
+threshold = 0.85
+severity = "warning"
+```
+
+### Team Rules Sharing (Future)
+
+```bash
+# Publish rules to registry
+lucent rules publish company/rust-best-practices
+
+# Install shared rules
+lucent rules install company/rust-best-practices
+
+# Update rules
+lucent rules update
+```
+
+---
+
+## Best Practices
+
+### Start Simple
+
+Begin with pattern rules, gradually adopt AST and metric rules:
+
+```toml
+# Phase 1: Basic patterns
+[[rules]]
+name = "no-todo"
+type = "pattern"
+pattern = 'TODO'
+severity = "info"
+
+# Phase 2: Add AST rules
+[[rules]]
+name = "require-tests"
+type = "ast"
+check = "module_without_tests"
+severity = "warning"
+
+# Phase 3: Metric thresholds
+[[rules]]
+name = "complexity-per-file"
+type = "metric"
+metric = "complexity"
+max_value = 30
+per_file = true
+```
+
+### Gradual Rollout
+
+Introduce rules without breaking builds:
+
+```toml
+# Week 1: Info level (awareness)
+[[rules]]
+severity = "info"
+
+# Week 2: Warning level (visibility)
+[[rules]]
+severity = "warning"
+fail_on_warning = false
+
+# Week 3: Error level (enforcement)
+[[rules]]
+severity = "error"
+fail_on_error = true
+```
+
+### Document Rules
+
+Add clear descriptions and suggestions:
+
+```toml
+[[rules]]
+name = "no-unwrap"
+description = """
+Avoid .unwrap() in production code as it can cause panics.
+Use pattern matching, ?, or unwrap_or() instead.
+"""
+suggestion = "Replace with `?` or `.unwrap_or_default()`"
+```
+
+### Performance
+
+Optimize rule execution:
+
+```toml
+[rules_config]
+parallel = true              # Run rules in parallel
+max_violations = 100         # Stop early
+cache_results = true         # Cache between runs
+```
+
+---
+
+## Troubleshooting
+
+### Rule Not Matching
+
+```bash
+# Debug rule matching
+lucent rules test my-rule src/file.rs --verbose
+
+# Check pattern syntax
+lucent rules validate --rule my-rule
+```
+
+### Performance Issues
+
+```toml
+# Limit file scope
+[[rules]]
+file_patterns = ["src/lib/**/*.rs"]  # Only library code
+exclude_patterns = ["**/tests/**"]    # Skip tests
+
+# Use simpler patterns
+pattern = 'unwrap\\('  # Faster than complex regex
+```
+
+### False Positives
+
+```toml
+# Add exclusions
+[[rules]]
+exclude_patterns = [
+  "**/generated/**",
+  "**/vendor/**",
+  "**/*.test.rs"
+]
+
+# Adjust severity
+severity = "info"  # Make it informational
+```
+
+---
+
+## Related Documentation
+
+- [Plugin Development Guide](./plugin-guide.mdx) - Write custom rule plugins
+- [Configuration Guide](./config-file-guide.mdx) - Full config reference
+- [CI/CD Quality Gates](./ci-quality-gates.mdx) - CI integration
+
+---
+
+## Roadmap
+
+**Phase 3.1** (Next Release):
+- Pattern-based rules
+- Basic AST rules
+- CLI commands
+
+**Phase 3.2**:
+- Advanced AST analysis
+- Auto-fix support
+- Rule templates
+
+**Phase 3.3**:
+- ML-based detection
+- Team rules sharing
+- VSCode integration
+
+---
+
+**Status**: 📋 Planned for Phase 3
+**Feedback**: [GitHub Discussions](https://github.com/ibrahimcesar/lucent/discussions)

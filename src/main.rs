@@ -4,11 +4,13 @@
 
 use anyhow::{Context, Result};
 use colored::Colorize;
+use rayon::prelude::*;
 
 use lucent::{
     Config, Scanner, FileMetrics, ProjectMetrics, display_metrics,
     Snapshot, SnapshotManager, SnapshotComparison,
     ValidationResult, ThresholdViolation, Severity,
+    cache::AnalysisCache,
 };
 
 mod main_git;
@@ -64,8 +66,8 @@ fn cmd_snapshot_save(config: &Config, description: Option<String>) -> Result<()>
     println!("📸 {}", "Saving snapshot...".bright_cyan());
     println!();
 
-    // Run analysis
-    let metrics = analyze_project(config)?;
+    // Run analysis (we don't need violations for snapshots)
+    let (metrics, _violations, _rules_config) = analyze_project(config)?;
 
     // Create snapshot
     let snapshot = Snapshot::new(metrics, description.clone())
@@ -312,33 +314,354 @@ fn run_analysis(config: &Config) -> Result<i32> {
         println!();
     }
 
-    let metrics = analyze_project(config)?;
+    let (metrics, violations, rules_config_opt) = analyze_project(config)?;
 
     // Display results
     let output_format = config.format.into();
     display_metrics(&metrics, output_format);
+
+    // Display custom rule violations if any
+    let mut rules_exit_code = 0;
+    if !violations.is_empty() {
+        println!();
+        rules_exit_code = display_custom_rule_violations(&violations, rules_config_opt.as_ref());
+    }
 
     // Threshold validation
     let threshold_config = config.threshold_config();
     if threshold_config.has_thresholds() {
         println!();
         let validation_result = threshold_config.validate(&metrics);
-        let exit_code = display_validation_result(&validation_result);
-        return Ok(exit_code);
+        let threshold_exit_code = display_validation_result(&validation_result);
+
+        // Return non-zero if either thresholds or rules failed
+        return Ok(std::cmp::max(threshold_exit_code, rules_exit_code));
     }
 
-    Ok(0)
+    Ok(rules_exit_code)
 }
 
-/// Analyze project and return metrics
-fn analyze_project(config: &Config) -> Result<ProjectMetrics> {
+/// Analyze project and return metrics along with custom rule violations
+fn analyze_project(config: &Config) -> Result<(ProjectMetrics, Vec<lucent::Violation>, Option<lucent::config::RulesGlobalConfig>)> {
     // Scan for source files
     if config.verbose {
         println!("{} {}", "📂 Scanning:".bright_cyan(), config.path.display());
     }
 
-    let scanner = Scanner::new(&config.path)
-        .context("Failed to create scanner")?;
+    // Load custom rules from config file if available
+    let mut rules_config_opt = None;
+    let rule_engine = if let Some(config_path) = &config.config_file {
+        match lucent::config::LucentConfig::from_file(config_path) {
+            Ok(file_config) => {
+                rules_config_opt = Some(file_config.rules_config.clone());
+                if file_config.rules_config.enabled && !file_config.rules.is_empty() {
+                let mut engine = lucent::RuleEngine::new();
+
+                for rule_config in &file_config.rules {
+                    // Validate rule config
+                    if let Err(e) = rule_config.validate() {
+                        eprintln!("{} Invalid rule '{}': {}", "⚠️".yellow(), rule_config.name, e);
+                        continue;
+                    }
+
+                    // Handle pattern rules
+                    if rule_config.rule_type == "pattern" {
+                        if let Some(pattern) = &rule_config.pattern {
+                            match lucent::rules::Severity::from_str(&rule_config.severity) {
+                                Some(severity) => {
+                                    match lucent::PatternRule::new(
+                                        rule_config.name.clone(),
+                                        rule_config.description.clone(),
+                                        pattern.clone(),
+                                        severity,
+                                    ) {
+                                        Ok(mut rule) => {
+                                            if !rule_config.file_patterns.is_empty() {
+                                                rule = rule.with_file_patterns(rule_config.file_patterns.clone());
+                                            }
+                                            if !rule_config.exclude_patterns.is_empty() {
+                                                rule = rule.with_exclude_patterns(rule_config.exclude_patterns.clone());
+                                            }
+                                            if let Some(lang) = &rule_config.language {
+                                                rule = rule.with_language(lang.clone());
+                                            }
+                                            if let Some(suggestion) = &rule_config.suggestion {
+                                                rule = rule.with_suggestion(suggestion.clone());
+                                            }
+                                            engine.add_rule(Box::new(rule));
+                                        }
+                                        Err(e) => {
+                                            eprintln!("{} Failed to compile pattern rule '{}': {}",
+                                                "⚠️".yellow(), rule_config.name, e);
+                                        }
+                                    }
+                                }
+                                None => {
+                                    eprintln!("{} Invalid severity for rule '{}': {}",
+                                        "⚠️".yellow(), rule_config.name, rule_config.severity);
+                                }
+                            }
+                        }
+                    }
+
+                    // Handle AST rules
+                    else if rule_config.rule_type == "ast" {
+                        match lucent::rules::Severity::from_str(&rule_config.severity) {
+                            Some(severity) => {
+                                // Determine the AST matcher type
+                                let matcher = if let Some(check) = &rule_config.check {
+                                    match check.as_str() {
+                                        "pub_fn_without_docs" | "public_function_without_docs" => {
+                                            lucent::AstMatcher::PublicFunctionWithoutDocs
+                                        }
+                                        "fn_without_docs" | "function_without_docs" => {
+                                            lucent::AstMatcher::FunctionWithoutDocs
+                                        }
+                                        "unhandled_result" | "missing_error_handling" => {
+                                            lucent::AstMatcher::UnhandledResult
+                                        }
+                                        _ => {
+                                            eprintln!("{} Unknown AST check type '{}' for rule '{}'",
+                                                "⚠️".yellow(), check, rule_config.name);
+                                            continue;
+                                        }
+                                    }
+                                } else if let Some(max_params) = rule_config.max_params {
+                                    lucent::AstMatcher::TooManyParameters { max: max_params }
+                                } else if let Some(max_arms) = rule_config.max_match_arms {
+                                    lucent::AstMatcher::TooManyMatchArms { max: max_arms }
+                                } else if let Some(max_depth) = rule_config.max_nesting_depth {
+                                    lucent::AstMatcher::DeepNesting { max_depth }
+                                } else {
+                                    eprintln!("{} AST rule '{}' must specify check, max_params, max_match_arms, or max_nesting_depth",
+                                        "⚠️".yellow(), rule_config.name);
+                                    continue;
+                                };
+
+                                let mut rule = lucent::AstRule::new(
+                                    rule_config.name.clone(),
+                                    rule_config.description.clone(),
+                                    severity,
+                                    matcher,
+                                );
+
+                                if !rule_config.file_patterns.is_empty() {
+                                    rule = rule.with_file_patterns(rule_config.file_patterns.clone());
+                                }
+                                if !rule_config.exclude_patterns.is_empty() {
+                                    rule = rule.with_exclude_patterns(rule_config.exclude_patterns.clone());
+                                }
+                                if let Some(lang) = &rule_config.language {
+                                    rule = rule.with_language(lang.clone());
+                                }
+                                if let Some(suggestion) = &rule_config.suggestion {
+                                    rule = rule.with_suggestion(suggestion.clone());
+                                }
+
+                                engine.add_rule(Box::new(rule));
+                            }
+                            None => {
+                                eprintln!("{} Invalid severity for rule '{}': {}",
+                                    "⚠️".yellow(), rule_config.name, rule_config.severity);
+                            }
+                        }
+                    }
+
+                    // Handle metric rules
+                    else if rule_config.rule_type == "metric" {
+                        match lucent::rules::Severity::from_str(&rule_config.severity) {
+                            Some(severity) => {
+                                if let Some(metric) = &rule_config.metric {
+                                    let metric_type = match metric.as_str() {
+                                        "complexity" | "cyclomatic_complexity" => {
+                                            if let Some(max) = rule_config.max_value {
+                                                lucent::MetricType::CyclomaticComplexity { max }
+                                            } else {
+                                                eprintln!("{} Metric rule '{}' for complexity must have max_value",
+                                                    "⚠️".yellow(), rule_config.name);
+                                                continue;
+                                            }
+                                        }
+                                        "cognitive_complexity" => {
+                                            if let Some(max) = rule_config.max_value {
+                                                lucent::MetricType::CognitiveComplexity { max }
+                                            } else {
+                                                eprintln!("{} Metric rule '{}' for cognitive_complexity must have max_value",
+                                                    "⚠️".yellow(), rule_config.name);
+                                                continue;
+                                            }
+                                        }
+                                        "nesting_depth" | "max_nesting_depth" => {
+                                            if let Some(max) = rule_config.max_value {
+                                                lucent::MetricType::NestingDepth { max: max as usize }
+                                            } else {
+                                                eprintln!("{} Metric rule '{}' for nesting_depth must have max_value",
+                                                    "⚠️".yellow(), rule_config.name);
+                                                continue;
+                                            }
+                                        }
+                                        "function_length" | "avg_function_length" => {
+                                            if let Some(max) = rule_config.max_value {
+                                                lucent::MetricType::FunctionLength { max: max as usize }
+                                            } else {
+                                                eprintln!("{} Metric rule '{}' for function_length must have max_value",
+                                                    "⚠️".yellow(), rule_config.name);
+                                                continue;
+                                            }
+                                        }
+                                        "file_size" | "total_lines" => {
+                                            if let Some(max) = rule_config.max_value {
+                                                lucent::MetricType::FileSize { max: max as usize }
+                                            } else {
+                                                eprintln!("{} Metric rule '{}' for file_size must have max_value",
+                                                    "⚠️".yellow(), rule_config.name);
+                                                continue;
+                                            }
+                                        }
+                                        "comment_ratio" => {
+                                            let min = rule_config.min_value.unwrap_or(0.0);
+                                            let max = rule_config.max_value.unwrap_or(100.0);
+                                            lucent::MetricType::CommentRatio { min, max }
+                                        }
+                                        "code_density" => {
+                                            let min = rule_config.min_value.unwrap_or(0.0);
+                                            let max = rule_config.max_value.unwrap_or(100.0);
+                                            lucent::MetricType::CodeDensity { min, max }
+                                        }
+                                        "maintainability_index" | "maintainability" => {
+                                            if let Some(min) = rule_config.min_value {
+                                                lucent::MetricType::MaintainabilityIndex { min }
+                                            } else {
+                                                eprintln!("{} Metric rule '{}' for maintainability_index must have min_value",
+                                                    "⚠️".yellow(), rule_config.name);
+                                                continue;
+                                            }
+                                        }
+                                        "halstead_volume" => {
+                                            if let Some(max) = rule_config.max_value {
+                                                lucent::MetricType::HalsteadVolume { max }
+                                            } else {
+                                                eprintln!("{} Metric rule '{}' for halstead_volume must have max_value",
+                                                    "⚠️".yellow(), rule_config.name);
+                                                continue;
+                                            }
+                                        }
+                                        "halstead_difficulty" => {
+                                            if let Some(max) = rule_config.max_value {
+                                                lucent::MetricType::HalsteadDifficulty { max }
+                                            } else {
+                                                eprintln!("{} Metric rule '{}' for halstead_difficulty must have max_value",
+                                                    "⚠️".yellow(), rule_config.name);
+                                                continue;
+                                            }
+                                        }
+                                        "function_count" => {
+                                            if let Some(max) = rule_config.max_value {
+                                                lucent::MetricType::FunctionCount { max: max as usize }
+                                            } else {
+                                                eprintln!("{} Metric rule '{}' for function_count must have max_value",
+                                                    "⚠️".yellow(), rule_config.name);
+                                                continue;
+                                            }
+                                        }
+                                        "todo_markers" | "todos" => {
+                                            if let Some(max) = rule_config.max_value {
+                                                lucent::MetricType::TodoMarkers { max: max as usize }
+                                            } else {
+                                                eprintln!("{} Metric rule '{}' for todo_markers must have max_value",
+                                                    "⚠️".yellow(), rule_config.name);
+                                                continue;
+                                            }
+                                        }
+                                        _ => {
+                                            eprintln!("{} Unknown metric type '{}' for rule '{}'",
+                                                "⚠️".yellow(), metric, rule_config.name);
+                                            continue;
+                                        }
+                                    };
+
+                                    let mut rule = lucent::MetricRule::new(
+                                        rule_config.name.clone(),
+                                        rule_config.description.clone(),
+                                        severity,
+                                        metric_type,
+                                    );
+
+                                    if !rule_config.file_patterns.is_empty() {
+                                        rule = rule.with_file_patterns(rule_config.file_patterns.clone());
+                                    }
+                                    if !rule_config.exclude_patterns.is_empty() {
+                                        rule = rule.with_exclude_patterns(rule_config.exclude_patterns.clone());
+                                    }
+                                    if let Some(lang) = &rule_config.language {
+                                        rule = rule.with_language(lang.clone());
+                                    }
+                                    if let Some(suggestion) = &rule_config.suggestion {
+                                        rule = rule.with_suggestion(suggestion.clone());
+                                    }
+
+                                    engine.add_rule(Box::new(rule));
+                                } else {
+                                    eprintln!("{} Metric rule '{}' must specify a metric type",
+                                        "⚠️".yellow(), rule_config.name);
+                                }
+                            }
+                            None => {
+                                eprintln!("{} Invalid severity for rule '{}': {}",
+                                    "⚠️".yellow(), rule_config.name, rule_config.severity);
+                            }
+                        }
+                    }
+                }
+
+                if config.verbose && engine.rule_count() > 0 {
+                    println!("{} Loaded {} custom rules", "📋".bright_cyan(), engine.rule_count());
+                }
+
+                Some(engine)
+                } else {
+                    None
+                }
+            }
+            Err(e) => {
+                if config.verbose {
+                    eprintln!("{} Failed to load config file: {}", "⚠️".yellow(), e);
+                }
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    // Get ignore patterns from config file if available
+    let scanner = if let Some(config_path) = &config.config_file {
+        // Load config file to get ignore patterns
+        if let Ok(file_config) = lucent::config::LucentConfig::from_file(config_path) {
+            let mut ignore_patterns = vec![];
+
+            // Add .lucentignore if enabled
+            if file_config.ignore.use_lucentignore {
+                ignore_patterns.push(".lucentignore".to_string());
+            }
+
+            // Add custom patterns from config
+            ignore_patterns.extend(file_config.ignore.patterns);
+
+            if config.verbose && !ignore_patterns.is_empty() {
+                println!("{} Using {} ignore patterns", "ℹ️".blue(), ignore_patterns.len());
+            }
+
+            Scanner::with_ignores(&config.path, ignore_patterns)
+                .context("Failed to create scanner")?
+        } else {
+            Scanner::new(&config.path)
+                .context("Failed to create scanner")?
+        }
+    } else {
+        Scanner::new(&config.path)
+            .context("Failed to create scanner")?
+    };
 
     let files = scanner.scan()
         .context("Failed to scan directory")?;
@@ -358,37 +681,102 @@ fn analyze_project(config: &Config) -> Result<ProjectMetrics> {
         println!();
     }
 
-    // Analyze metrics
-    let mut project_metrics = ProjectMetrics::new();
+    // Initialize cache
+    let mut cache = AnalysisCache::new().unwrap_or_default();
+    let mut cache_hits = 0;
+    let mut cache_misses = 0;
 
-    for source_file in &files {
-        if config.verbose {
-            println!("{} {}", "  Analyzing:".bright_black(), source_file.path.display());
+    // Collect rule violations
+    let mut all_violations: Vec<lucent::Violation> = Vec::new();
+
+    // Analyze metrics in parallel with caching
+    let results: Vec<_> = files.par_iter()
+        .filter_map(|source_file| {
+            if config.verbose && !config.per_file {
+                println!("{} {}", "  Analyzing:".bright_black(), source_file.path.display());
+            }
+
+            // Try to get from cache first (read-only check)
+            let metrics = if let Some(cached_metrics) = cache.get(&source_file.path) {
+                if config.verbose {
+                    println!("    {} Cache hit", "💨".bright_green());
+                }
+                cached_metrics.clone()
+            } else {
+                match FileMetrics::analyze(&source_file.path, source_file.language) {
+                    Ok(metrics) => metrics,
+                    Err(e) => {
+                        if config.verbose {
+                            eprintln!("    {} Failed to analyze {}: {}", "✗".red(), source_file.path.display(), e);
+                        }
+                        return None;
+                    }
+                }
+            };
+
+            // Show per-file metrics if requested
+            if config.per_file && !matches!(config.format, lucent::config::OutputFormat::Json) {
+                println!("    {} {} Lines: {}, Code: {}, Entropy: {:.2}",
+                    source_file.language.emoji(),
+                    source_file.path.display().to_string().bright_black(),
+                    metrics.total_lines,
+                    metrics.code_lines,
+                    metrics.entropy
+                );
+            }
+
+            Some((source_file.path.clone(), source_file.language.name, metrics))
+        })
+        .collect();
+
+    // Update cache and aggregate results
+    let mut project_metrics = ProjectMetrics::new();
+    for (path, language_name, metrics) in results {
+        // Update cache
+        if cache.get(&path).is_none() {
+            let _ = cache.insert(path.clone(), metrics.clone());
+            cache_misses += 1;
+        } else {
+            cache_hits += 1;
         }
 
-        match FileMetrics::analyze(&source_file.path, source_file.language) {
-            Ok(metrics) => {
-                project_metrics.add_file(source_file.language.name, &metrics);
+        project_metrics.add_file(language_name, &metrics);
 
-                // Show per-file metrics if requested
-                if config.per_file && !matches!(config.format, lucent::config::OutputFormat::Json) {
-                    println!("    {} Lines: {}, Code: {}, Entropy: {:.2}",
-                        source_file.language.emoji(),
-                        metrics.total_lines,
-                        metrics.code_lines,
-                        metrics.entropy
-                    );
-                }
-            }
-            Err(e) => {
-                if config.verbose {
-                    eprintln!("    {} Failed to analyze: {}", "✗".red(), e);
+        // Check custom rules if engine is available
+        if let Some(ref engine) = rule_engine {
+            // Find the source file to get language info
+            if let Some(source_file) = files.iter().find(|f| f.path == path) {
+                // Read file content for rule checking
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    let violations = engine.check_file(&path, &content, &source_file.language);
+                    all_violations.extend(violations);
                 }
             }
         }
     }
 
-    Ok(project_metrics)
+    // Save cache
+    if let Err(e) = cache.save() {
+        if config.verbose {
+            eprintln!("Warning: Failed to save cache: {}", e);
+        }
+    }
+
+    if config.verbose {
+        println!();
+        println!("{} Cache: {} hits, {} misses ({:.1}% hit rate)",
+            "📊".bright_cyan(),
+            cache_hits,
+            cache_misses,
+            if cache_hits + cache_misses > 0 {
+                (cache_hits as f64 / (cache_hits + cache_misses) as f64) * 100.0
+            } else {
+                0.0
+            }
+        );
+    }
+
+    Ok((project_metrics, all_violations, rules_config_opt))
 }
 
 /// Display threshold validation results and return exit code
@@ -436,4 +824,120 @@ fn display_violations(violations: &[ThresholdViolation]) {
             violation.actual.cyan()
         );
     }
+}
+
+/// Display custom rule violations and return exit code
+fn display_custom_rule_violations(
+    violations: &[lucent::Violation],
+    rules_config: Option<&lucent::config::RulesGlobalConfig>
+) -> i32 {
+    use colored::Colorize;
+
+    println!("{} Custom Rule Violations", "⚠️".yellow().bold());
+    println!();
+
+    // Group violations by severity
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+    let mut infos = Vec::new();
+
+    for violation in violations {
+        match violation.severity {
+            lucent::rules::Severity::Error => errors.push(violation),
+            lucent::rules::Severity::Warning => warnings.push(violation),
+            lucent::rules::Severity::Info => infos.push(violation),
+        }
+    }
+
+    // Display errors first
+    for violation in &errors {
+        display_single_violation(violation, "✗", |s: String| s.red());
+    }
+
+    // Then warnings
+    for violation in &warnings {
+        display_single_violation(violation, "⚠", |s: String| s.yellow());
+    }
+
+    // Finally info
+    for violation in &infos {
+        display_single_violation(violation, "ℹ", |s: String| s.bright_blue());
+    }
+
+    // Summary
+    println!();
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!();
+    println!("{} Custom Rules Summary", "📊".bright_cyan());
+    println!("  Total Violations: {}", violations.len().to_string().cyan());
+    if !errors.is_empty() {
+        println!("  {} Errors: {}", "✗".red(), errors.len().to_string().red());
+    }
+    if !warnings.is_empty() {
+        println!("  {} Warnings: {}", "⚠".yellow(), warnings.len().to_string().yellow());
+    }
+    if !infos.is_empty() {
+        println!("  {} Info: {}", "ℹ".bright_blue(), infos.len().to_string().bright_blue());
+    }
+
+    // Determine exit code based on rules config
+    let default_config = lucent::config::RulesGlobalConfig::default();
+    let config = rules_config.unwrap_or(&default_config);
+
+    if config.fail_on_error && !errors.is_empty() {
+        return 1;
+    }
+
+    if config.fail_on_warning && !warnings.is_empty() {
+        return 1;
+    }
+
+    0
+}
+
+/// Display a single violation
+fn display_single_violation(
+    violation: &lucent::Violation,
+    emoji: &str,
+    color_fn: fn(String) -> colored::ColoredString
+) {
+    use colored::Colorize;
+
+    println!(
+        "  {}:{}:{}",
+        violation.file.bright_black(),
+        violation.line.to_string().cyan(),
+        violation.column.to_string().cyan()
+    );
+
+    println!(
+        "    {} {} [{}]",
+        emoji,
+        color_fn(violation.rule.clone()),
+        violation.severity.to_string().bold()
+    );
+
+    println!(
+        "      {}",
+        violation.message.bright_white()
+    );
+
+    if let Some(ref snippet) = violation.code_snippet {
+        println!();
+        println!(
+            "      {} | {}",
+            violation.line.to_string().bright_black(),
+            snippet.bright_black()
+        );
+    }
+
+    if let Some(ref suggestion) = violation.suggestion {
+        println!();
+        println!(
+            "      Suggestion: {}",
+            suggestion.bright_green()
+        );
+    }
+
+    println!();
 }

@@ -21,6 +21,7 @@ pub struct SourceFile {
 /// Scanner for discovering source files in a directory
 pub struct Scanner {
     root: PathBuf,
+    custom_ignores: Vec<String>,
 }
 
 impl Scanner {
@@ -32,17 +33,34 @@ impl Scanner {
             anyhow::bail!("Path does not exist: {}", root.display());
         }
 
-        Ok(Self { root })
+        Ok(Self {
+            root,
+            custom_ignores: Vec::new(),
+        })
+    }
+
+    /// Create scanner with custom ignore patterns
+    pub fn with_ignores<P: AsRef<Path>>(path: P, ignores: Vec<String>) -> Result<Self> {
+        let mut scanner = Self::new(path)?;
+        scanner.custom_ignores = ignores;
+        Ok(scanner)
     }
 
     /// Scan for source files
     pub fn scan(&self) -> Result<Vec<SourceFile>> {
         let mut files = Vec::new();
 
-        let walker = WalkBuilder::new(&self.root)
+        let mut walker_builder = WalkBuilder::new(&self.root);
+        walker_builder
             .standard_filters(true) // Respects .gitignore, .ignore, etc.
-            .hidden(false) // Don't skip hidden files by default
-            .build();
+            .hidden(false); // Don't skip hidden files by default
+
+        // Add custom ignore patterns
+        for pattern in &self.custom_ignores {
+            walker_builder.add_custom_ignore_filename(pattern);
+        }
+
+        let walker = walker_builder.build();
 
         for entry in walker {
             let entry = entry.context("Failed to read directory entry")?;

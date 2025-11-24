@@ -1,0 +1,437 @@
+---
+title: VSCode Extension Development
+description: Development guide for the Lucent VSCode extension
+---
+
+# VSCode Extension Development Guide
+
+## Overview
+
+This is the official VSCode extension for Lucent code metrics. It provides real-time code quality insights directly in your editor.
+
+## Architecture
+
+The extension is structured into several key components:
+
+### Core Components
+
+- **[extension.ts](src/extension.ts)** - Main entry point, handles activation and registration
+- **[analyzer.ts](src/analyzer.ts)** - Lucent CLI integration layer
+- **[statusBar.ts](src/statusBar.ts)** - Status bar indicators
+
+### Providers
+
+- **[codeLensProvider.ts](src/providers/codeLensProvider.ts)** - Inline metrics above code
+- **[hoverProvider.ts](src/providers/hoverProvider.ts)** - Detailed tooltips on hover
+- **[diagnosticsProvider.ts](src/providers/diagnosticsProvider.ts)** - Problems panel integration
+- **[metricsProvider.ts](src/providers/metricsProvider.ts)** - Sidebar tree view
+
+### Panels (Webviews)
+
+- **[metricsPanel.ts](src/panels/metricsPanel.ts)** - Interactive metrics dashboard
+- **[trendsPanel.ts](src/panels/trendsPanel.ts)** - Git history visualization with Chart.js
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20.x or higher
+- npm or yarn
+- VSCode 1.85.0 or higher
+- Lucent CLI installed (`cargo install lucent-code` or build from source)
+
+### Installation
+
+```bash
+cd vscode-extension
+npm install
+```
+
+### Development Workflow
+
+#### 1. Build the extension
+
+```bash
+npm run compile
+```
+
+This compiles TypeScript to JavaScript in the `out/` directory.
+
+#### 2. Watch mode (recommended for development)
+
+```bash
+npm run watch
+```
+
+Auto-recompiles on file changes.
+
+#### 3. Run the extension
+
+Press `F5` in VSCode to open Extension Development Host with the extension loaded.
+
+#### 4. Test the extension
+
+```bash
+npm test
+```
+
+Runs all unit and integration tests.
+
+#### 5. Lint code
+
+```bash
+npm run lint
+```
+
+Runs ESLint on all TypeScript files.
+
+## Testing
+
+### Unit Tests
+
+Located in `src/test/suite/`:
+
+- **extension.test.ts** - Extension activation and command registration tests
+- **analyzer.test.ts** - LucentAnalyzer integration tests
+- **providers.test.ts** - Provider functionality tests
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run with watch mode during development
+npm run watch & npm test
+```
+
+### Test Structure
+
+Tests use Mocha and VSCode's test framework:
+
+```typescript
+suite('Feature Test Suite', () => {
+    test('Should do something', () => {
+        assert.ok(true);
+    });
+});
+```
+
+## Key Features Implementation
+
+### 1. Inline Code Lenses
+
+**File:** [src/providers/codeLensProvider.ts](src/providers/codeLensProvider.ts)
+
+Shows metrics at the top of each file. Updates on save.
+
+**How it works:**
+- Implements `vscode.CodeLensProvider`
+- Calls Lucent CLI with `--format json`
+- Renders metrics as clickable lenses
+
+### 2. Hover Tooltips
+
+**File:** [src/providers/hoverProvider.ts](src/providers/hoverProvider.ts)
+
+Shows detailed metrics when hovering over code.
+
+**How it works:**
+- Implements `vscode.HoverProvider`
+- Detects function definitions vs. general code
+- Returns markdown-formatted tooltips
+
+### 3. Diagnostics (Problems Panel)
+
+**File:** [src/providers/diagnosticsProvider.ts](src/providers/diagnosticsProvider.ts)
+
+Integrates quality issues into VSCode's Problems panel.
+
+**How it works:**
+- Uses `vscode.DiagnosticCollection`
+- Maps complexity/maintainability violations to diagnostics
+- Configurable severity levels
+
+### 4. Status Bar
+
+**File:** [src/statusBar.ts](src/statusBar.ts)
+
+Shows current file metrics in status bar.
+
+**How it works:**
+- Creates `vscode.StatusBarItem`
+- Updates on file switch and save
+- Color-coded indicators (🟢🟡🔴)
+
+### 5. Metrics Sidebar
+
+**File:** [src/providers/metricsProvider.ts](src/providers/metricsProvider.ts)
+
+Hierarchical tree view of file metrics.
+
+**How it works:**
+- Implements `vscode.TreeDataProvider`
+- Creates expandable tree items
+- Updates via `_onDidChangeTreeData` event
+
+### 6. Metrics Panel (Webview)
+
+**File:** [src/panels/metricsPanel.ts](src/panels/metricsPanel.ts)
+
+Interactive dashboard with charts and recommendations.
+
+**How it works:**
+- Creates `vscode.WebviewPanel`
+- Renders HTML with CSS styling
+- Handles messages from webview (analyze, export)
+
+### 7. Trends Panel (Webview)
+
+**File:** [src/panels/trendsPanel.ts](src/panels/trendsPanel.ts)
+
+Git history visualization with Chart.js.
+
+**How it works:**
+- Calls Lucent Git integration commands
+- Renders Chart.js visualizations
+- Interactive commit history
+
+## Configuration
+
+Extension settings are defined in [package.json](package.json) under `contributes.configuration`:
+
+```json
+{
+  "lucent.enabled": true,
+  "lucent.showInlineMetrics": true,
+  "lucent.analyzeOnSave": true,
+  "lucent.thresholds": {
+    "maxComplexity": 10,
+    "minMaintainability": 65
+  }
+}
+```
+
+### Accessing Configuration
+
+```typescript
+const config = vscode.workspace.getConfiguration('lucent');
+const threshold = config.get<number>('thresholds.maxComplexity');
+```
+
+## Commands
+
+All commands are prefixed with `lucent.`:
+
+| Command | Description | Keybinding |
+|---------|-------------|------------|
+| `lucent.analyzeFile` | Analyze current file | - |
+| `lucent.analyzeWorkspace` | Analyze entire workspace | - |
+| `lucent.showMetricsPanel` | Open metrics dashboard | - |
+| `lucent.showTrends` | Open trends visualization | - |
+| `lucent.clearCache` | Clear analysis cache | - |
+| `lucent.toggleInlineDiagnostics` | Toggle inline metrics | - |
+
+### Registering Commands
+
+```typescript
+context.subscriptions.push(
+    vscode.commands.registerCommand('lucent.analyzeFile', async () => {
+        await analyzeActiveEditor();
+    })
+);
+```
+
+## Event Handlers
+
+### On Save
+
+```typescript
+vscode.workspace.onDidSaveTextDocument(async (document) => {
+    if (config.get('analyzeOnSave')) {
+        await analyzer.analyzeFile(document.uri.fsPath);
+    }
+});
+```
+
+### On Editor Change
+
+```typescript
+vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+    if (editor) {
+        statusBarManager.update();
+    }
+});
+```
+
+## Lucent CLI Integration
+
+The extension integrates with Lucent CLI via the `LucentAnalyzer` class:
+
+```typescript
+// Analyze a file
+const metrics = await analyzer.analyzeFile('/path/to/file.rs');
+
+// Get Git trends
+const trends = await analyzer.getGitTrends(10);
+
+// Clear cache
+await analyzer.clearCache();
+```
+
+### CLI Command Format
+
+```bash
+# File analysis (JSON output)
+lucent /path/to/file.rs --format json
+
+# Git trends
+lucent git trends --limit 10 --metric complexity --format json
+
+# Git history
+lucent git history --limit 10 --format json
+```
+
+## Packaging and Publishing
+
+### Package Extension
+
+```bash
+npm run package
+```
+
+Creates a `.vsix` file for distribution.
+
+### Publish to Marketplace
+
+```bash
+npm run publish
+```
+
+Requires:
+- VSCode Marketplace account
+- Personal Access Token (PAT)
+- Publisher name configured
+
+## Debugging
+
+### Extension Host
+
+1. Press `F5` to launch Extension Development Host
+2. Set breakpoints in TypeScript files
+3. Debug in main VSCode window
+
+### Webview Debugging
+
+1. Open webview panel (Metrics or Trends)
+2. Press `Ctrl+Shift+P` → "Developer: Open Webview Developer Tools"
+3. Use Chrome DevTools for webview debugging
+
+### Logging
+
+```typescript
+// Console logging (shown in Extension Host Output)
+console.log('Debug message');
+
+// Show user messages
+vscode.window.showInformationMessage('Success!');
+vscode.window.showErrorMessage('Error occurred');
+```
+
+## Common Issues
+
+### Extension not activating
+
+- Check `activationEvents` in package.json
+- Ensure extension is installed in Extension Development Host
+- Check Output panel for errors
+
+### Lucent CLI not found
+
+- Verify Lucent is in PATH: `which lucent`
+- Set `lucent.executablePath` in settings
+- Build Lucent from source if needed
+
+### TypeScript errors
+
+```bash
+# Clean build
+rm -rf out/
+npm run compile
+```
+
+### Tests failing
+
+- Ensure VSCode is installed for testing
+- Check test file paths match glob pattern
+- Verify mock context setup in tests
+
+## File Structure
+
+```
+vscode-extension/
+├── src/
+│   ├── extension.ts          # Main entry point
+│   ├── analyzer.ts            # Lucent CLI integration
+│   ├── statusBar.ts           # Status bar manager
+│   ├── providers/
+│   │   ├── codeLensProvider.ts
+│   │   ├── hoverProvider.ts
+│   │   ├── diagnosticsProvider.ts
+│   │   └── metricsProvider.ts
+│   ├── panels/
+│   │   ├── metricsPanel.ts
+│   │   └── trendsPanel.ts
+│   └── test/
+│       ├── runTest.ts
+│       └── suite/
+│           ├── index.ts
+│           ├── extension.test.ts
+│           ├── analyzer.test.ts
+│           └── providers.test.ts
+├── out/                       # Compiled JavaScript
+├── package.json               # Extension manifest
+├── tsconfig.json              # TypeScript configuration
+├── .eslintrc.json             # ESLint configuration
+├── .vscodeignore              # Files to exclude from VSIX
+├── README.md                  # User documentation
+├── FEATURES.md                # Feature breakdown
+└── DEVELOPMENT.md             # This file
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Run `npm run lint` and `npm test`
+6. Submit a pull request
+
+## Resources
+
+- [VSCode Extension API](https://code.visualstudio.com/api)
+- [Publishing Extensions](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
+- [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+- [Lucent Documentation](../docs/README.md)
+
+## Next Steps
+
+### Planned Features
+
+- **Watch mode**: Continuous analysis on file changes
+- **Code actions**: Quick fixes for quality issues
+- **Diff view**: Compare metrics before/after changes
+- **Team dashboards**: Shared quality metrics
+- **Custom rules**: User-defined quality gates
+
+### Performance Improvements
+
+- Incremental analysis (only changed functions)
+- Worker threads for analysis
+- Better caching strategies
+- Debounced analysis triggers
+
+---
+
+**Questions?** Open an issue at [github.com/ibrahimcesar/lucent/issues](https://github.com/ibrahimcesar/lucent/issues)

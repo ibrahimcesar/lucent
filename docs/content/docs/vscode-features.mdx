@@ -1,0 +1,574 @@
+---
+title: VSCode Extension Features
+description: Detailed breakdown of all VSCode extension features
+---
+
+# VSCode Extension - Feature Breakdown
+
+This document provides a detailed explanation of each feature in the Lucent VS Code extension.
+
+## 📊 Feature 1: Inline Code Lenses
+
+### What It Is
+Code lenses are small, inline annotations that appear above your code, showing real-time metrics without cluttering your workspace.
+
+### How It Works
+- Uses VS Code's CodeLens API
+- Queries Lucent CLI with `--format json` for structured data
+- Updates automatically on file save
+- Caches results for performance
+
+### Technical Details
+```typescript
+// Provider: src/providers/codeLensProvider.ts
+// Displays at line 0 (top of file)
+// Shows: Complexity | Maintainability | LOC | Code Smells
+// Click action: Opens detailed metrics panel
+```
+
+### Benefits
+- **Non-intrusive**: Doesn't clutter code
+- **Always visible**: See metrics without extra panels
+- **Clickable**: Quick access to detailed view
+- **Color-coded**: Visual indicators for quality levels
+
+### Configuration
+```json
+{
+  "lucent.showInlineMetrics": true  // Toggle on/off
+}
+```
+
+---
+
+## 🔍 Feature 2: Hover Tooltips
+
+### What It Is
+Rich tooltips that appear when you hover over code, providing detailed metrics and explanations.
+
+### How It Works
+- Uses VS Code's HoverProvider API
+- Analyzes the code at hover position
+- Generates formatted markdown tooltip
+- Shows context-specific information
+
+### Technical Details
+```typescript
+// Provider: src/providers/hoverProvider.ts
+// Triggers: On hover (500ms delay)
+// Content: Markdown with metrics breakdown
+// Includes: Tips, recommendations, thresholds
+```
+
+### What's Shown
+1. **Function Metrics** (when hovering over function)
+   - Cyclomatic complexity with explanation
+   - Maintainability index with rating
+   - Line counts (total, code, comments)
+   - Specific recommendations
+
+2. **File Metrics** (when hovering over imports)
+   - Overall file quality
+   - Language-specific insights
+   - Historical trends (if Git enabled)
+
+3. **Code Smell Details** (when hovering over issues)
+   - Severity level
+   - Why it's a problem
+   - How to fix it
+   - Related documentation links
+
+### Benefits
+- **Contextual**: Shows relevant info for cursor position
+- **Educational**: Explains metrics, not just shows numbers
+- **Actionable**: Provides specific fix suggestions
+- **Non-blocking**: Doesn't interrupt workflow
+
+---
+
+## ⚠️ Feature 3: Real-time Diagnostics
+
+### What It Is
+VS Code's Problems panel integration, showing code quality issues alongside syntax errors.
+
+### How It Works
+- Uses VS Code's DiagnosticCollection API
+- Runs Lucent analysis on save (configurable)
+- Maps quality issues to VS Code problems
+- Updates in real-time
+
+### Technical Details
+```typescript
+// Provider: src/providers/diagnosticsProvider.ts
+// Triggers: On save, on demand
+// Severity mapping:
+//   - High complexity → Error/Warning
+//   - Deep nesting → Warning
+//   - Low maintainability → Warning
+//   - Code smells → Info/Hint
+```
+
+### Diagnostic Types
+
+#### 1. High Complexity
+```
+⚠️ Function 'calculateTotal' has high complexity (12)
+   Consider breaking into smaller functions
+   Threshold: 10
+```
+
+#### 2. Deep Nesting
+```
+⚠️ Deep nesting detected (6 levels)
+   Refactor to reduce nesting depth
+   Threshold: 4 levels
+```
+
+#### 3. Low Maintainability
+```
+❌ Low maintainability index (58)
+   File is difficult to maintain
+   Target: 65+
+```
+
+#### 4. Long Function
+```
+💡 Function exceeds recommended length (87 lines)
+   Consider extracting sub-functions
+   Recommended: <50 lines
+```
+
+### Configuration
+```json
+{
+  "lucent.diagnosticSeverity": "warning",  // error|warning|info|hint
+  "lucent.thresholds": {
+    "maxComplexity": 10,
+    "maxNesting": 4,
+    "minMaintainability": 65
+  }
+}
+```
+
+### Benefits
+- **Integrated**: Works with existing problem workflow
+- **Configurable**: Adjust severity to team standards
+- **Actionable**: Links to affected code
+- **Filterable**: Use VS Code's problem filters
+
+---
+
+## 📈 Feature 4: Status Bar Indicators
+
+### What It Is
+Real-time metrics display in VS Code's status bar showing current file quality at a glance.
+
+### How It Works
+- Uses VS Code's StatusBarItem API
+- Updates on file switch and save
+- Color-codes based on thresholds
+- Clickable for quick actions
+
+### Technical Details
+```typescript
+// Component: src/statusBar.ts
+// Position: Left side of status bar
+// Priority: 100 (visible but not intrusive)
+// Format: "💎 Lucent: Complexity X | MI Y 🟢"
+```
+
+### Display Modes
+
+#### Active File Mode
+```
+💎 Lucent: Complexity 8.5 | MI 72 🟡 | [Analyze]
+```
+
+#### Workspace Summary Mode
+```
+💎 Lucent: 50 files | Avg MI: 75 🟢 | [View All]
+```
+
+#### Error State
+```
+💎 Lucent: Analysis failed | [Retry]
+```
+
+### Color Coding
+- 🟢 **Green**: MI ≥ 85 (Excellent)
+- 🟡 **Yellow**: 65 ≤ MI < 85 (Good)
+- 🔴 **Red**: MI < 65 (Needs work)
+
+### Benefits
+- **Always visible**: No need to open panels
+- **Quick reference**: See quality at a glance
+- **Clickable**: Fast access to analysis
+- **Customizable**: Show/hide via settings
+
+---
+
+## 🗂️ Feature 5: Metrics Sidebar
+
+### What It Is
+Dedicated sidebar panel showing hierarchical metrics view for files and projects.
+
+### How It Works
+- Uses VS Code's TreeView API
+- Three main views: File Metrics, Project Overview, Git Trends
+- Real-time updates on file changes
+- Interactive drill-down navigation
+
+### Technical Details
+```typescript
+// Provider: src/providers/metricsProvider.ts
+// Views: 3 tree views in custom container
+// Data: Hierarchical tree items
+// Actions: Click to navigate, context menus
+```
+
+### View Structure
+
+#### 1. File Metrics View
+```
+📄 Current File: src/main.rs
+  ├─ 📊 Complexity: 8.5
+  ├─ 🎯 Maintainability: 72
+  ├─ 📏 Lines of Code
+  │   ├─ Total: 245
+  │   ├─ Code: 180
+  │   ├─ Comments: 45
+  │   └─ Blank: 20
+  ├─ ⚠️ Code Smells (2)
+  │   ├─ High complexity in function 'parse'
+  │   └─ Deep nesting in 'analyze'
+  └─ 📈 Trend: ↗️ Improving
+```
+
+#### 2. Project Overview
+```
+📦 Project Metrics
+  ├─ 📊 Summary
+  │   ├─ Total Files: 50
+  │   ├─ Total Lines: 12,450
+  │   └─ Avg Maintainability: 75
+  ├─ 🌍 By Language
+  │   ├─ Rust (30 files)
+  │   ├─ TypeScript (15 files)
+  │   └─ Python (5 files)
+  ├─ 🔥 Top Complex Files
+  │   ├─ parser.rs (Complexity: 25)
+  │   ├─ analyzer.rs (Complexity: 18)
+  │   └─ main.rs (Complexity: 15)
+  └─ 🎯 Quality Distribution
+      ├─ Excellent: 20 files
+      ├─ Good: 25 files
+      └─ Needs Work: 5 files
+```
+
+#### 3. Git Trends View
+```
+📈 Quality Trends (Last 10 commits)
+  ├─ Overall Trend: ↗️ Improving
+  ├─ Complexity Trend: ↘️ Decreasing (Good!)
+  ├─ Recent Commits
+  │   ├─ abc123 - "Refactor parser" (+5 MI)
+  │   ├─ def456 - "Add features" (-2 MI)
+  │   └─ ghi789 - "Fix bugs" (+1 MI)
+  └─ Historical Data
+      ├─ Best: MI 85 (2 weeks ago)
+      ├─ Current: MI 75
+      └─ Worst: MI 62 (1 month ago)
+```
+
+### Benefits
+- **Organized**: All metrics in one place
+- **Navigable**: Click files to open
+- **Filterable**: Focus on specific metrics
+- **Contextual**: Right-click for actions
+
+---
+
+## 🎯 Feature 6: Commands & Actions
+
+### What It Is
+Comprehensive command palette integration for all Lucent operations.
+
+### Available Commands
+
+#### Analysis Commands
+```
+1. Lucent: Analyze Current File
+   - Runs analysis on active editor
+   - Updates all views and diagnostics
+   - Shortcut: Cmd+Shift+L
+
+2. Lucent: Analyze Entire Workspace
+   - Full project analysis
+   - Progress notification
+   - Can take time on large projects
+
+3. Lucent: Analyze Selection
+   - Analyzes selected code block
+   - Useful for refactoring
+
+4. Lucent: Clear Analysis Cache
+   - Forces re-analysis
+   - Clears both VS Code and Lucent caches
+```
+
+#### View Commands
+```
+5. Lucent: Show Metrics Panel
+   - Opens webview with detailed metrics
+   - Interactive charts and graphs
+   - Shortcut: Cmd+Shift+M
+
+6. Lucent: Show Git Trends
+   - Opens trends visualization
+   - Requires Git repository
+   - Shortcut: Cmd+Shift+T
+
+7. Lucent: Show Project Dashboard
+   - Overview of entire project
+   - Summary statistics
+```
+
+#### Configuration Commands
+```
+8. Lucent: Toggle Inline Diagnostics
+   - Show/hide code lenses
+   - Quick toggle
+
+9. Lucent: Open Settings
+   - Direct to Lucent settings
+   - Workspace or user level
+
+10. Lucent: Reset to Defaults
+    - Restores default configuration
+    - Confirmation required
+```
+
+### Benefits
+- **Discoverable**: All via Cmd+Shift+P
+- **Consistent**: Standard VS Code UX
+- **Fast**: Keyboard shortcuts available
+- **Organized**: Prefixed with "Lucent:"
+
+---
+
+## 📊 Feature 7: Metrics Panel (Webview)
+
+### What It Is
+Full-featured HTML panel with interactive charts and detailed analysis.
+
+### Components
+
+#### Dashboard View
+- **Overview Cards**: Key metrics at a glance
+- **Quality Gauge**: Visual MI indicator
+- **Trend Chart**: Quality over time
+- **Quick Actions**: Analyze, Export, Settings
+
+#### Complexity Analysis
+- **Heatmap**: Files colored by complexity
+- **Function List**: Sortable table of all functions
+- **Drill-down**: Click to see function details
+- **Recommendations**: AI-powered suggestions
+
+#### Quality Breakdown
+- **Maintainability Distribution**: Histogram
+- **Code Smell Categories**: Pie chart
+- **Technical Debt**: Estimated hours to fix
+- **Priority Matrix**: Urgency vs impact
+
+#### Export Features
+- **PDF Report**: Professional report generation
+- **PNG Charts**: For presentations
+- **CSV Data**: For analysis
+- **JSON**: For integration
+
+### Benefits
+- **Visual**: Easier to understand than numbers
+- **Interactive**: Explore data dynamically
+- **Shareable**: Export for team reviews
+- **Professional**: Report-ready visualizations
+
+---
+
+## 🌳 Feature 8: Git Integration
+
+### What It Is
+Deep integration with Git for historical analysis and trend tracking.
+
+### Features
+
+#### 1. Commit-by-Commit Analysis
+```typescript
+// Analyzes each commit to track quality
+// Shows: Complexity, MI, LOC changes per commit
+// Identifies: Quality regressions
+```
+
+**Use cases**:
+- Review before/after of refactoring PRs
+- Identify commits that degraded quality
+- Track team member contributions to quality
+
+#### 2. Trend Tracking
+```typescript
+// Visualizes metrics over time
+// Shows: Line charts, trend direction
+// Detects: Patterns, anomalies
+```
+
+**Metrics tracked**:
+- Complexity trend (should decrease over time)
+- Maintainability trend (should increase)
+- Lines of code trend
+- Code smell count
+
+#### 3. Diff Mode Analysis
+```typescript
+// Analyzes only changed files
+// Perfect for: PR reviews, pre-commit checks
+// Shows: Delta metrics (before → after)
+```
+
+**Benefits**:
+- Faster than full analysis
+- Focus on what changed
+- Objective PR review criteria
+
+#### 4. Blame Integration
+```typescript
+// Shows who wrote complex code
+// Not for blame, but for: Knowledge sharing
+// Helps identify: Areas needing mentorship
+```
+
+**Display**:
+- Function complexity by author
+- Team complexity contribution
+- Individual improvement trends
+
+### Configuration
+```json
+{
+  "lucent.git.enabled": true,
+  "lucent.git.trendsLimit": 20,
+  "lucent.git.autoAnalyzeCommits": false
+}
+```
+
+---
+
+## ⚙️ Feature 9: Smart Configuration
+
+### What It Is
+Intelligent configuration system that adapts to your project and workflow.
+
+### Configuration Layers
+
+#### 1. User Settings (Global)
+```json
+// ~/.config/Code/User/settings.json
+{
+  "lucent.diagnosticSeverity": "warning",
+  "lucent.enableCache": true
+}
+```
+
+#### 2. Workspace Settings (Project)
+```json
+// .vscode/settings.json (in project root)
+{
+  "lucent.thresholds": {
+    "maxComplexity": 15  // Relaxed for legacy code
+  }
+}
+```
+
+#### 3. File-level Overrides
+```typescript
+// In-file comment configuration
+// lucent-disable-next-line complexity
+function legacyComplexFunction() {
+  // ... complex code ...
+}
+```
+
+### Auto-detection
+
+The extension automatically detects:
+- **Language**: Adjusts thresholds per language
+- **Project size**: Scales cache size
+- **Git presence**: Enables/disables Git features
+- **Team config**: Reads `.lucent.toml` if present
+
+### Workspace Sync
+```json
+// Share with team via .vscode/settings.json
+{
+  "lucent.thresholds": {
+    "maxComplexity": 10,
+    "minMaintainability": 70
+  }
+}
+```
+
+---
+
+## 💡 Feature 10: Performance Optimizations
+
+### What It Does
+Ensures fast, responsive analysis even on large codebases.
+
+### Optimization Techniques
+
+#### 1. Smart Caching
+```typescript
+// Three-tier caching:
+// - Memory: Hot data for active file
+// - Disk: Lucent's native cache
+// - Cloud: Team-shared (future)
+```
+
+#### 2. Incremental Analysis
+```typescript
+// Only re-analyzes changed files
+// Uses file watch to detect changes
+// Invalidates cache selectively
+```
+
+#### 3. Background Processing
+```typescript
+// Analysis runs in background
+// Doesn't block editor
+// Progress shown in status bar
+```
+
+#### 4. Lazy Loading
+```typescript
+// Loads sidebar data on demand
+// Metrics panel loads sections progressively
+// Charts render on visibility
+```
+
+### Performance Metrics
+- **Cold start**: ~2s for extension activation
+- **File analysis**: ~50-200ms (cached: ~5ms)
+- **Workspace analysis**: Parallel, scales with cores
+- **Memory usage**: ~20-50MB
+
+---
+
+## Summary
+
+All 10 features work together to provide:
+- **Real-time feedback** via code lenses and diagnostics
+- **Deep insights** via hover and panels
+- **Historical context** via Git integration
+- **Team collaboration** via shared configuration
+- **Fast performance** via smart caching
+
+Each feature is **independently toggleable** and **fully configurable** to match your workflow.

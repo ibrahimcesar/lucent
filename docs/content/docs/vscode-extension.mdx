@@ -1,0 +1,477 @@
+---
+title: VSCode Extension
+description: Real-time code metrics and quality monitoring in Visual Studio Code
+---
+
+# VSCode Extension
+
+The Lucent VSCode extension brings crystal clear code insights directly into your editor with real-time analysis, inline metrics, and Git-powered trends.
+
+## Installation
+
+### From Marketplace (Coming Soon)
+
+1. Open VS Code
+2. Press `Cmd+Shift+X` (Extensions view)
+3. Search for "Lucent"
+4. Click "Install"
+
+### Requirements
+
+- **VS Code**: Version 1.85.0 or higher
+- **Lucent CLI**: Must be installed and in PATH
+  ```bash
+  cargo install lucent-code
+  lucent --version  # Verify installation
+  ```
+
+---
+
+## Features Overview
+
+### 1. 📊 Inline Code Lenses
+
+Real-time metrics displayed at the top of each file.
+
+**What you see**:
+```typescript
+// $(symbol-method) Complexity: 8.5  $(beaker) Maintainability: 72 🟡  $(file-code) 145 LOC
+
+function processData(input: string[]) {
+    // Your code here
+}
+```
+
+**Metrics shown**:
+- **Complexity**: Cyclomatic complexity score
+- **Maintainability**: 0-100 index with color indicator
+  - 🟢 85-100: Excellent
+  - 🟡 65-84: Good
+  - 🔴 0-64: Needs improvement
+- **Lines of Code**: Total code lines
+- **Code Smells**: Quality issues count
+
+**Actions**:
+- Click any metric to open detailed panel
+- Toggle: `Cmd+Shift+P` → "Lucent: Toggle Inline Diagnostics"
+
+---
+
+### 2. 🔍 Hover Tooltips
+
+Detailed metrics on hover.
+
+**Example**:
+```
+Metrics for calculateTotal():
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Cyclomatic Complexity: 12
+├─ Decision points: 8
+├─ Nested conditionals: 4
+└─ Recommendation: Consider refactoring
+
+Maintainability Index: 58 🔴
+├─ Below recommended threshold
+└─ Target: 65+
+
+Lines of Code: 87
+├─ Code: 72
+├─ Comments: 10
+└─ Blank: 5
+```
+
+**Hover over**:
+- Function names → Function metrics
+- Imports/exports → File summary
+- Classes → Class complexity
+
+---
+
+### 3. ⚠️ Real-time Diagnostics
+
+Quality issues in the Problems panel.
+
+**Example problems**:
+```
+⚠️ High complexity in 'processOrder' (complexity: 15)
+   Threshold: 10
+   Line 42, src/orders.ts
+
+⚠️ Deep nesting detected (6 levels)
+   Recommended: 4 levels max
+   Line 78, src/parser.rs
+
+💡 Consider extracting method (function length: 95 lines)
+   Recommended: <50 lines
+   Line 120, src/analyzer.ts
+```
+
+**Configure severity**:
+```json
+{
+  "lucent.diagnosticSeverity": "warning",
+  "lucent.thresholds": {
+    "maxComplexity": 10,
+    "maxNesting": 4,
+    "minMaintainability": 65
+  }
+}
+```
+
+---
+
+### 4. 📈 Status Bar Indicators
+
+Current file metrics at a glance.
+
+**Display**:
+```
+💎 Lucent: Complexity 8.5 | MI 72 🟡 | [Analyze]
+```
+
+**Click to**:
+- Analyze current file
+- Open metrics panel
+- View project summary
+
+**Colors**:
+- 🟢 Green: Excellent quality
+- 🟡 Yellow: Good quality
+- 🔴 Red: Needs improvement
+
+---
+
+### 5. 🗂️ Metrics Sidebar
+
+Dedicated panel in the Activity Bar.
+
+**Three views**:
+
+#### File Metrics
+```
+📄 src/main.rs
+├─ Complexity: 8.5
+├─ Maintainability: 72 🟡
+├─ Code Smells (2)
+│  ├─ High complexity in 'parse'
+│  └─ Deep nesting in 'analyze'
+└─ Trend: ↗️ Improving
+```
+
+#### Project Overview
+```
+📦 Project
+├─ Files: 50
+├─ Avg MI: 75
+├─ By Language
+│  ├─ Rust (30 files)
+│  └─ TypeScript (20 files)
+└─ Top Complex
+   ├─ parser.rs (25.3)
+   └─ analyzer.rs (18.7)
+```
+
+#### Git Trends
+```
+📈 Quality Trends
+├─ Overall: ↗️ Improving
+├─ Complexity: ↘️ Decreasing
+└─ Recent Commits
+   ├─ abc123: +5 MI
+   └─ def456: -2 MI
+```
+
+---
+
+## Commands
+
+Access via `Cmd+Shift+P`:
+
+### Analysis
+- **Lucent: Analyze Current File** (`Cmd+Shift+L`)
+- **Lucent: Analyze Entire Workspace**
+- **Lucent: Clear Analysis Cache**
+
+### Views
+- **Lucent: Show Metrics Panel** (`Cmd+Shift+M`)
+- **Lucent: Show Git Trends** (`Cmd+Shift+T`)
+
+### Settings
+- **Lucent: Toggle Inline Diagnostics**
+- **Lucent: Open Settings**
+
+---
+
+## Configuration
+
+### Basic Settings
+
+```json
+{
+  // Enable extension
+  "lucent.enabled": true,
+
+  // Display options
+  "lucent.showInlineMetrics": true,
+  "lucent.showStatusBar": true,
+
+  // Auto-analysis
+  "lucent.analyzeOnSave": true,
+  "lucent.analyzeOnOpen": false,
+
+  // Performance
+  "lucent.enableCache": true
+}
+```
+
+### Quality Thresholds
+
+```json
+{
+  "lucent.thresholds": {
+    "maxComplexity": 10,
+    "maxNesting": 4,
+    "minMaintainability": 65,
+    "maxFunctionLength": 50
+  }
+}
+```
+
+### Executable Path
+
+```json
+{
+  // If lucent is not in PATH
+  "lucent.executablePath": "/usr/local/bin/lucent"
+}
+```
+
+### Git Integration
+
+```json
+{
+  "lucent.git.enabled": true,
+  "lucent.git.trendsLimit": 20
+}
+```
+
+---
+
+## Workflows
+
+### Daily Development
+
+1. **Open file** → Metrics appear in code lens
+2. **See warning** → Hover for details
+3. **Click "View Details"** → Open metrics panel
+4. **Refactor** based on suggestions
+5. **Save file** → Metrics update automatically
+6. **Check status bar** → Verify improvement
+
+### Code Review
+
+1. **Checkout PR branch**
+2. **Open changed files** → See inline metrics
+3. **Check complexity** → Identify risky changes
+4. **Leave comments** with objective data
+5. **Request changes** if thresholds exceeded
+
+### Refactoring Session
+
+1. **Open sidebar** → Find complex files
+2. **Set goal** → Reduce complexity by 20%
+3. **Work through files** → Track in real-time
+4. **Check trends** → Verify improvement
+5. **Commit** → See updated metrics
+
+---
+
+## Best Practices
+
+### For Teams
+
+**Share settings**:
+```json
+// .vscode/settings.json (commit to repo)
+{
+  "lucent.thresholds": {
+    "maxComplexity": 10,
+    "minMaintainability": 70
+  }
+}
+```
+
+**Match CI thresholds**:
+```yaml
+# .github/workflows/quality.yml
+- run: |
+    lucent . \
+      --max-complexity 10 \
+      --min-maintainability 70
+```
+
+### For Performance
+
+- **Enable caching** (default)
+- **Use `analyzeOnSave`** instead of `analyzeOnOpen`
+- **Exclude large files** in `.gitignore`
+
+### For Quality
+
+- **Start relaxed**, tighten over time
+- **Focus on worst files** first
+- **Review trends weekly**
+- **Celebrate improvements** 🎉
+
+---
+
+## Troubleshooting
+
+### "Lucent executable not found"
+
+**Check installation**:
+```bash
+which lucent
+lucent --version
+```
+
+**Set path**:
+```json
+{
+  "lucent.executablePath": "/full/path/to/lucent"
+}
+```
+
+### "Analysis too slow"
+
+**Enable caching**:
+```json
+{
+  "lucent.enableCache": true
+}
+```
+
+**Analyze selectively**:
+- Use `analyzeOnSave` instead of `analyzeOnOpen`
+- Analyze current file only (`Cmd+Shift+L`)
+
+### "Metrics not updating"
+
+**Solutions**:
+1. Clear cache: `Cmd+Shift+P` → "Lucent: Clear Cache"
+2. Reload window: `Cmd+Shift+P` → "Reload Window"
+3. Check configuration: Verify `lucent.enabled: true`
+
+### "Git features not working"
+
+**Requirements**:
+- Must be in Git repository
+- Git must be installed
+- Enable in settings: `lucent.git.enabled: true`
+
+---
+
+## Keyboard Shortcuts
+
+Default shortcuts:
+
+| Action | Shortcut |
+|--------|----------|
+| Analyze Current File | `Cmd+Shift+L` |
+| Show Metrics Panel | `Cmd+Shift+M` |
+| Show Git Trends | `Cmd+Shift+T` |
+
+**Customize**:
+`Code` → `Preferences` → `Keyboard Shortcuts` → Search "Lucent"
+
+---
+
+## Integration Examples
+
+### With Testing
+
+```json
+{
+  // Analyze after test runs
+  "lucent.analyzeAfterTest": true,
+
+  // Show metrics in test files
+  "lucent.includeTests": true
+}
+```
+
+### With Linting
+
+```json
+{
+  // Run after ESLint
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+  "lucent.analyzeOnSave": true
+}
+```
+
+### With Git Hooks
+
+```bash
+# .git/hooks/pre-commit
+#!/bin/bash
+code --wait --command "lucent.analyzeFile"
+```
+
+---
+
+## Advanced Features
+
+### Metrics Panel (Webview)
+
+Interactive panel with:
+- **Charts**: Complexity distribution, trends
+- **Heatmaps**: Visual file complexity
+- **Export**: PDF, PNG, CSV
+- **Drill-down**: Function-level analysis
+
+**Open**: `Cmd+Shift+M` or click code lens
+
+### Git Trends Panel
+
+Visualizations:
+- **Line charts**: Complexity over time
+- **Commit analysis**: Quality impact
+- **Regression detection**: Automatic alerts
+
+**Open**: `Cmd+Shift+T`
+
+---
+
+## Planned Features
+
+Coming soon:
+
+- [ ] Function-level code lenses
+- [ ] Quick fixes for code smells
+- [ ] Automated refactoring suggestions
+- [ ] Team dashboards (shared metrics)
+- [ ] Custom metric definitions
+- [ ] Multi-workspace support
+
+---
+
+## Related Documentation
+
+- [Git Integration](./git-integration.mdx) - Git features in CLI
+- [Performance](./performance.mdx) - Caching and optimization
+- [Thresholds](./thresholds.mdx) - Quality gates
+
+---
+
+## Feedback & Support
+
+- [Report issues](https://github.com/ibrahimcesar/lucent/issues)
+- [Request features](https://github.com/ibrahimcesar/lucent/discussions)
+- [View changelog](https://github.com/ibrahimcesar/lucent/blob/main/CHANGELOG.md)
+
+---
+
+**Made with 💎 by the Lucent team**

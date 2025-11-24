@@ -1,0 +1,33 @@
+{
+  "src/lib.rs": {
+    "hash": 2892,
+    "mtime": {
+      "secs_since_epoch": 1763948029,
+      "nanos_since_epoch": 629444759
+    },
+    "size": 2892,
+    "metrics": {
+      "total_lines": 105,
+      "code_lines": 37,
+      "comment_lines": 51,
+      "blank_lines": 17,
+      "entropy": 4.965853632492404,
+      "cyclomatic_complexity": 23,
+      "cognitive_complexity": 42,
+      "max_nesting_depth": 3,
+      "function_count": 2,
+      "avg_function_length": 15.5,
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "comment_quality_score": 0.32142857142857145,
+      "low_quality_comments": 18,
+      "high_quality_comments": 3,
+      "code_smells": [],
+      "maintainability_index": 41.99493947645367,
+      "halstead_volume": 2303.306978692686,
+      "halstead_difficulty": 22.093023255813954,
+      "halstead_effort": 50887.01464553608
+    }
+  }
+}

@@ -1,0 +1,372 @@
+---
+title: Git Integration
+description: Track code quality over time with Git-powered analysis
+---
+
+# Git Integration
+
+Lucent integrates deeply with Git to provide historical analysis, trend tracking, and quality monitoring across your repository's lifetime.
+
+## Features
+
+### 1. Diff Mode - Analyze Only Changed Files
+
+Analyze only the files that have changed, perfect for PR reviews and incremental development.
+
+```bash
+# Analyze uncommitted changes
+lucent git diff --uncommitted
+
+# Compare with a specific commit
+lucent git diff --base HEAD~5
+
+# Compare two specific commits
+lucent git diff --base abc123 --to def456
+```
+
+**Use cases**:
+- Pre-commit quality checks
+- Pull request reviews
+- Incremental CI/CD analysis
+
+**Benefits**:
+- ⚡ Faster than full analysis (only changed files)
+- 🎯 Focused feedback on your changes
+- 📊 Delta metrics (before → after)
+
+---
+
+### 2. Commit History Analysis
+
+Track how metrics have evolved across commits.
+
+```bash
+# Analyze last 10 commits
+lucent git history --limit 10
+
+# Skip first 5, analyze next 10
+lucent git history --limit 10 --skip 5
+
+# JSON output for scripting
+lucent git history --limit 20 --format json
+```
+
+**Output includes**:
+- Metrics for each commit
+- Delta between commits
+- Overall trend direction (Improving/Stable/Degrading)
+
+**Example output**:
+```
+📜 Commit History Analysis
+
+Analyzing 10 commits...
+
+8afd171 chore: reserve namespace (Ibrahim Cesar)
+  Files: 50, Lines: 9168, Complexity: 22.7, MI: 48
+
+9c98954 Update README.md (Ibrahim Cesar)
+  Files: 50, Lines: 9168, Complexity: 22.7, MI: 48
+
+📈 Overall Trend: ➡️  Stable
+```
+
+---
+
+### 3. Trend Tracking & Visualization
+
+Visualize how complexity and quality metrics change over time.
+
+```bash
+# Show complexity trends
+lucent git trends --limit 20 --metric complexity
+
+# Maintainability trends
+lucent git trends --limit 20 --metric maintainability
+
+# Customize chart height
+lucent git trends --limit 20 --metric complexity --height 15
+```
+
+**Metrics tracked**:
+- Complexity (should trend downward)
+- Maintainability (should trend upward)
+- Lines of code (growth)
+
+**ASCII chart output**:
+```
+Complexity Over Time
+Max: 25.3 | Min: 18.2
+────────────────────────────────
+        ████
+      ██████
+    ████████
+  ██████████
+████████████████████
+────────────────────────────────
+← 20 commits →
+```
+
+**JSON output**:
+```json
+{
+  "overall_trend": "Improving",
+  "complexity_series": [
+    [1700000000, 25.3],
+    [1700100000, 24.1],
+    [1700200000, 22.7]
+  ],
+  "complexity_stats": {
+    "mean": 23.4,
+    "min": 18.2,
+    "max": 25.3,
+    "trend_slope": -0.35
+  }
+}
+```
+
+---
+
+### 4. Blame Integration
+
+See who contributed to code complexity (for knowledge sharing, not blame!).
+
+```bash
+# Analyze specific file
+lucent git blame src/main.rs
+
+# Show top 10 contributors
+lucent git blame --top 10
+
+# Analyze entire project
+lucent git blame
+```
+
+**Use cases**:
+- Identify domain experts for complex areas
+- Understand code ownership
+- Mentorship opportunities
+- Refactoring prioritization
+
+**Output**:
+```
+👥 Blame Analysis - Complexity Attribution
+
+Top Contributors by Complexity:
+
+1. Alice (alice@example.com)
+   Lines: 2,450 | Files: 15 | Complexity: 245.3
+
+2. Bob (bob@example.com)
+   Lines: 1,890 | Files: 12 | Complexity: 178.5
+```
+
+---
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml
+name: Code Quality Check
+
+on: [pull_request]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for trends
+
+      - name: Install Lucent
+        run: cargo install lucent-code
+
+      - name: Analyze changed files
+        run: lucent git diff --uncommitted --format json > metrics.json
+
+      - name: Check thresholds
+        run: |
+          lucent . \
+            --max-complexity 10 \
+            --min-maintainability 65 \
+            --fail-on-warning
+
+      - name: Upload metrics
+        uses: actions/upload-artifact@v3
+        with:
+          name: metrics
+          path: metrics.json
+```
+
+### Pre-commit Hook
+
+```bash
+# .git/hooks/pre-commit
+#!/bin/bash
+
+echo "Analyzing changed files..."
+lucent git diff --uncommitted
+
+if lucent git diff --uncommitted --max-complexity 15; then
+  echo "✓ Quality checks passed"
+  exit 0
+else
+  echo "✗ Quality checks failed"
+  echo "Run 'lucent git diff --uncommitted' for details"
+  exit 1
+fi
+```
+
+---
+
+## Trend Tracking Best Practices
+
+### 1. Regular Monitoring
+
+Track trends weekly:
+
+```bash
+# Add to CI or local script
+lucent git trends --limit 50 --metric complexity > trends.txt
+lucent git trends --limit 50 --metric maintainability >> trends.txt
+```
+
+### 2. Set Quality Goals
+
+Use trends to set improvement targets:
+
+```bash
+# Current state
+lucent git history --limit 1
+
+# Goal: Reduce complexity by 10% in 1 month
+# Track progress weekly
+```
+
+### 3. Regression Detection
+
+Catch quality regressions early:
+
+```bash
+# In CI pipeline
+CURRENT_MI=$(lucent . --format json | jq '.avg_maintainability')
+BASELINE_MI=75
+
+if (( $(echo "$CURRENT_MI < $BASELINE_MI" | bc -l) )); then
+  echo "Maintainability regression detected!"
+  exit 1
+fi
+```
+
+---
+
+## Configuration
+
+### Git Settings
+
+```toml
+# .lucent.toml
+[git]
+enabled = true
+trends_limit = 20
+auto_analyze_commits = false
+```
+
+### Exclude Paths
+
+Use `.gitignore` patterns - Lucent respects them automatically:
+
+```gitignore
+# .gitignore
+node_modules/
+target/
+*.generated.rs
+```
+
+---
+
+## Advanced Usage
+
+### Custom Trend Analysis
+
+```bash
+# Analyze specific date range
+lucent git history \
+  --since "2024-01-01" \
+  --until "2024-12-31" \
+  --format json | jq '.analyses[] | {
+    commit: .commit.short_hash,
+    mi: .metrics.avg_maintainability
+  }'
+```
+
+### Compare Branches
+
+```bash
+# Analyze main branch
+git checkout main
+lucent . --format json > main-metrics.json
+
+# Analyze feature branch
+git checkout feature-branch
+lucent . --format json > feature-metrics.json
+
+# Compare
+diff main-metrics.json feature-metrics.json
+```
+
+### Team Leaderboards
+
+```bash
+# Positive reinforcement - celebrate improvements!
+lucent git blame --format json | jq -r '
+  .contributors[] |
+  select(.trend == "Improving") |
+  "\(.author): \(.improvement)% improvement"
+'
+```
+
+---
+
+## Troubleshooting
+
+### "Not a git repository"
+
+Ensure you're in a Git repository:
+```bash
+git status
+# If not: git init
+```
+
+### "Failed to get blame information"
+
+Some files may not be tracked:
+```bash
+git add <file>
+git commit -m "Track file"
+```
+
+### Slow analysis
+
+For large repositories:
+```bash
+# Use shallow history
+lucent git history --limit 10  # Instead of 100
+
+# Analyze recent commits only
+lucent git trends --since "1 month ago"
+```
+
+---
+
+## Related Documentation
+
+- [CI/CD Quality Gates](./ci-quality-gates.mdx)
+- [Thresholds](./thresholds.mdx)
+- [Snapshots](./snapshots.mdx)
+
+---
+
+**Next**: [VSCode Extension](./vscode-extension.mdx) for real-time Git trends in your editor

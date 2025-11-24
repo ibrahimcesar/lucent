@@ -1,0 +1,203 @@
+{
+  "name": "lucent-code-metrics",
+  "displayName": "Lucent - Code Metrics & Quality",
+  "description": "Crystal clear code insights - Real-time code metrics, complexity analysis, and quality monitoring",
+  "version": "0.1.0",
+  "publisher": "lucent",
+  "icon": "images/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages",
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "code metrics",
+    "complexity",
+    "maintainability",
+    "code quality",
+    "static analysis"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "lucent.analyzeFile",
+        "title": "Lucent: Analyze Current File",
+        "icon": "$(chart-line)"
+      },
+      {
+        "command": "lucent.analyzeWorkspace",
+        "title": "Lucent: Analyze Entire Workspace",
+        "icon": "$(folder-library)"
+      },
+      {
+        "command": "lucent.showMetricsPanel",
+        "title": "Lucent: Show Metrics Panel",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "lucent.clearCache",
+        "title": "Lucent: Clear Analysis Cache",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "lucent.showTrends",
+        "title": "Lucent: Show Git Trends",
+        "icon": "$(graph-line)"
+      },
+      {
+        "command": "lucent.toggleInlineDiagnostics",
+        "title": "Lucent: Toggle Inline Diagnostics",
+        "icon": "$(eye)"
+      }
+    ],
+    "configuration": {
+      "title": "Lucent Code Metrics",
+      "properties": {
+        "lucent.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable Lucent analysis"
+        },
+        "lucent.executablePath": {
+          "type": "string",
+          "default": "lucent",
+          "description": "Path to lucent executable (default: uses PATH)"
+        },
+        "lucent.showInlineMetrics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline code lenses with metrics"
+        },
+        "lucent.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show metrics in status bar"
+        },
+        "lucent.analyzeOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically analyze file on save"
+        },
+        "lucent.analyzeOnOpen": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically analyze file when opened"
+        },
+        "lucent.thresholds": {
+          "type": "object",
+          "default": {
+            "maxComplexity": 10,
+            "maxNesting": 4,
+            "minMaintainability": 65
+          },
+          "description": "Quality thresholds for diagnostics"
+        },
+        "lucent.diagnosticSeverity": {
+          "type": "string",
+          "enum": ["error", "warning", "information", "hint"],
+          "default": "warning",
+          "description": "Severity level for quality violations"
+        },
+        "lucent.enableCache": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable caching for faster analysis"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "lucent-sidebar",
+          "title": "Lucent Metrics",
+          "icon": "resources/lucent-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "lucent-sidebar": [
+        {
+          "id": "lucent.metricsView",
+          "name": "File Metrics",
+          "icon": "$(file-code)",
+          "contextualTitle": "Lucent Metrics"
+        },
+        {
+          "id": "lucent.projectView",
+          "name": "Project Overview",
+          "icon": "$(folder-library)",
+          "contextualTitle": "Project Metrics"
+        },
+        {
+          "id": "lucent.trendsView",
+          "name": "Quality Trends",
+          "icon": "$(graph-line)",
+          "contextualTitle": "Git Trends",
+          "when": "lucent.hasGit"
+        }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "lucent.analyzeFile",
+          "group": "lucent@1",
+          "when": "editorTextFocus"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "lucent.analyzeWorkspace",
+          "group": "lucent@1"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "lucent.analyzeWorkspace",
+          "when": "view == lucent.projectView",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.x",
+    "@types/vscode": "^1.85.0",
+    "@types/mocha": "^10.0.x",
+    "@typescript-eslint/eslint-plugin": "^6.x",
+    "@typescript-eslint/parser": "^6.x",
+    "@vscode/test-electron": "^2.3.x",
+    "eslint": "^8.x",
+    "typescript": "^5.3.x",
+    "@vscode/vsce": "^2.22.0",
+    "mocha": "^10.2.x",
+    "glob": "^10.3.x"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ibrahimcesar/lucent"
+  },
+  "bugs": {
+    "url": "https://github.com/ibrahimcesar/lucent/issues"
+  },
+  "homepage": "https://github.com/ibrahimcesar/lucent#readme",
+  "license": "MIT"
+}

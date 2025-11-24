@@ -33,6 +33,14 @@ pub struct LucentConfig {
     /// Plugin configuration
     #[serde(default)]
     pub plugins: PluginConfig,
+
+    /// Custom rules configuration
+    #[serde(default)]
+    pub rules_config: RulesGlobalConfig,
+
+    /// Custom rules definitions
+    #[serde(default)]
+    pub rules: Vec<RuleConfig>,
 }
 
 /// Plugin configuration
@@ -53,6 +61,162 @@ pub struct PluginConfig {
 
 fn default_true() -> bool {
     true
+}
+
+/// Global rules configuration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RulesGlobalConfig {
+    /// Enable custom rules checking
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+
+    /// Exit with code 1 on error-level violations
+    #[serde(default = "default_true")]
+    pub fail_on_error: bool,
+
+    /// Exit with code 1 on warning-level violations
+    #[serde(default)]
+    pub fail_on_warning: bool,
+
+    /// Maximum number of violations to report (0 = unlimited)
+    #[serde(default)]
+    pub max_violations: usize,
+
+    /// Run rules in parallel
+    #[serde(default = "default_true")]
+    pub parallel: bool,
+}
+
+impl Default for RulesGlobalConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            fail_on_error: true,
+            fail_on_warning: false,
+            max_violations: 0,
+            parallel: true,
+        }
+    }
+}
+
+/// Individual rule configuration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RuleConfig {
+    /// Rule unique identifier
+    pub name: String,
+
+    /// Rule description
+    pub description: String,
+
+    /// Rule type: "pattern", "ast", "metric", or "plugin"
+    #[serde(rename = "type")]
+    pub rule_type: String,
+
+    /// Severity: "error", "warning", or "info"
+    pub severity: String,
+
+    // Pattern rule fields
+    /// Regex pattern (for pattern rules)
+    #[serde(default)]
+    pub pattern: Option<String>,
+
+    // File filtering
+    /// File patterns to include (glob-style)
+    #[serde(default)]
+    pub file_patterns: Vec<String>,
+
+    /// File patterns to exclude (glob-style)
+    #[serde(default)]
+    pub exclude_patterns: Vec<String>,
+
+    /// Target language filter
+    #[serde(default)]
+    pub language: Option<String>,
+
+    // Optional fields
+    /// Suggestion text for fixing violation
+    #[serde(default)]
+    pub suggestion: Option<String>,
+
+    /// Enable auto-fix (future feature)
+    #[serde(default)]
+    pub autofix: bool,
+
+    /// Per-file vs project-wide application
+    #[serde(default = "default_true")]
+    pub per_file: bool,
+
+    // Metric rule fields
+    /// Metric name (for metric rules)
+    #[serde(default)]
+    pub metric: Option<String>,
+
+    /// Maximum value threshold
+    #[serde(default)]
+    pub max_value: Option<f64>,
+
+    /// Minimum value threshold
+    #[serde(default)]
+    pub min_value: Option<f64>,
+
+    // AST rule fields
+    /// AST check type (for ast rules)
+    #[serde(default)]
+    pub check: Option<String>,
+
+    /// Maximum match arms (for ast rules)
+    #[serde(default)]
+    pub max_match_arms: Option<usize>,
+
+    /// Maximum function parameters (for ast rules)
+    #[serde(default)]
+    pub max_params: Option<usize>,
+
+    /// Maximum nesting depth (for ast rules)
+    #[serde(default)]
+    pub max_nesting_depth: Option<usize>,
+}
+
+impl RuleConfig {
+    /// Validate the rule configuration
+    pub fn validate(&self) -> anyhow::Result<()> {
+        // Validate rule type
+        match self.rule_type.as_str() {
+            "pattern" | "ast" | "metric" | "plugin" => {},
+            _ => anyhow::bail!("Invalid rule type: {}. Must be 'pattern', 'ast', 'metric', or 'plugin'", self.rule_type),
+        }
+
+        // Validate severity
+        match self.severity.as_str() {
+            "error" | "warning" | "info" => {},
+            _ => anyhow::bail!("Invalid severity: {}. Must be 'error', 'warning', or 'info'", self.severity),
+        }
+
+        // Type-specific validation
+        match self.rule_type.as_str() {
+            "pattern" => {
+                if self.pattern.is_none() {
+                    anyhow::bail!("Pattern rules must have a 'pattern' field");
+                }
+            },
+            "metric" => {
+                if self.metric.is_none() {
+                    anyhow::bail!("Metric rules must have a 'metric' field");
+                }
+                if self.max_value.is_none() && self.min_value.is_none() {
+                    anyhow::bail!("Metric rules must have either 'max_value' or 'min_value'");
+                }
+            },
+            "ast" => {
+                if self.check.is_none() && self.max_match_arms.is_none() && self.max_params.is_none() && self.max_nesting_depth.is_none() {
+                    anyhow::bail!("AST rules must have at least one check parameter");
+                }
+            },
+            _ => {}
+        }
+
+        Ok(())
+    }
 }
 
 /// Project metadata configuration
@@ -191,6 +355,8 @@ impl Default for LucentConfig {
             languages: HashMap::new(),
             output: OutputConfig::default(),
             plugins: PluginConfig::default(),
+            rules_config: RulesGlobalConfig::default(),
+            rules: Vec::new(),
         }
     }
 }
