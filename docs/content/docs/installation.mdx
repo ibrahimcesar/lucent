@@ -1,0 +1,110 @@
+---
+title: Installation
+description: How to install and set up Lucent for code analysis
+---
+
+# Installation
+
+Lucent is a Rust-based tool that can be installed from source or via pre-built binaries.
+
+## Prerequisites
+
+- **Rust** 1.70 or later (for building from source)
+- **Git** (for cloning the repository)
+
+## Install from Source
+
+The recommended way to install Lucent is to build it from source:
+
+```bash
+# Clone the repository
+git clone https://github.com/ibrahimcesar/lucent
+cd lucent
+
+# Build the release binary
+cargo build --release
+
+# The binary will be available at target/release/lucent
+./target/release/lucent --version
+```
+
+## Install Locally
+
+To install Lucent to your local Cargo bin directory:
+
+```bash
+cd lucent
+cargo install --path .
+
+# Now you can run lucent from anywhere
+lucent --version
+```
+
+The binary will be installed to `~/.cargo/bin/lucent` (make sure this directory is in your PATH).
+
+## Install from crates.io
+
+<Callout type="info">
+Coming soon! Lucent is not yet published to crates.io.
+</Callout>
+
+Once published, you'll be able to install with:
+
+```bash
+cargo install lucent-code
+```
+
+## Verify Installation
+
+After installation, verify it works:
+
+```bash
+# Check version
+lucent --version
+
+# Get help
+lucent --help
+
+# Analyze current directory
+lucent .
+```
+
+## System Requirements
+
+- **Operating Systems**: Linux, macOS, Windows
+- **Memory**: Minimal (< 50 MB for most projects)
+- **Disk Space**: ~10 MB for the binary
+
+## Troubleshooting
+
+### Rust not installed
+
+If you don't have Rust installed, install it via [rustup](https://rustup.rs/):
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+### Build fails
+
+Ensure you have the latest Rust version:
+
+```bash
+rustup update
+```
+
+### Binary not in PATH
+
+Add Cargo's bin directory to your PATH:
+
+```bash
+# For bash/zsh
+echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+## Next Steps
+
+- [Quick Start](/docs/quick-start) - Learn basic usage
+- [Configuration](/docs/config-file-guide) - Set up `.lucent.toml`
+- [CI/CD Integration](/docs/ci-quality-gates) - Automate quality checks

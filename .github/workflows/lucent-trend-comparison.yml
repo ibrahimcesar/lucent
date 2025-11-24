@@ -1,0 +1,280 @@
+name: 💎 Lucent Trend Comparison
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+    types: [ opened, synchronize, reopened ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  trend-comparison:
+    name: Compare with Base Branch
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🦀 Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: 📦 Cache Cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: 🔨 Build Lucent
+        run: cargo build --release
+
+      - name: 📊 Analyze PR Branch
+        run: |
+          echo "Analyzing PR branch..."
+          cargo run --release -- . --format json > pr-metrics.json 2>&1 || true
+
+          if [ -f pr-metrics.json ]; then
+            echo "✅ PR branch analysis complete"
+          else
+            echo "❌ Failed to analyze PR branch"
+            exit 1
+          fi
+
+      - name: 📊 Analyze Base Branch
+        run: |
+          echo "Checking out base branch: ${{ github.base_ref }}"
+          git fetch origin ${{ github.base_ref }}
+          git checkout origin/${{ github.base_ref }}
+
+          echo "Analyzing base branch..."
+          cargo run --release -- . --format json > base-metrics.json 2>&1 || true
+
+          if [ -f base-metrics.json ]; then
+            echo "✅ Base branch analysis complete"
+          else
+            echo "⚠️ Could not analyze base branch"
+            echo '{"summary": {"total_files": 0, "total_lines": 0, "average_complexity": 0, "average_nesting_depth": 0}}' > base-metrics.json
+          fi
+
+      - name: 📈 Calculate Trends
+        id: trends
+        run: |
+          # Create a Node.js script to compare metrics
+          cat > compare-metrics.js << 'EOF'
+          const fs = require('fs');
+
+          function readJSON(file) {
+            try {
+              return JSON.parse(fs.readFileSync(file, 'utf8'));
+            } catch (error) {
+              console.error(`Error reading ${file}:`, error.message);
+              return null;
+            }
+          }
+
+          function formatDelta(current, base, decimals = 1, invertColors = false) {
+            if (base === 0) return { value: current, delta: '(new)', icon: '✨', color: 'neutral' };
+
+            const diff = current - base;
+            const percent = ((diff / base) * 100);
+            const sign = diff > 0 ? '+' : '';
+
+            let icon, color;
+            if (Math.abs(diff) < 0.1) {
+              icon = '➡️';
+              color = 'neutral';
+            } else if (diff > 0) {
+              icon = invertColors ? '❌' : '✅';
+              color = invertColors ? 'red' : 'green';
+            } else {
+              icon = invertColors ? '✅' : '❌';
+              color = invertColors ? 'green' : 'red';
+            }
+
+            return {
+              value: current.toFixed(decimals),
+              delta: `${sign}${diff.toFixed(decimals)} (${sign}${percent.toFixed(1)}%)`,
+              icon,
+              color
+            };
+          }
+
+          const prMetrics = readJSON('pr-metrics.json');
+          const baseMetrics = readJSON('base-metrics.json');
+
+          if (!prMetrics || !baseMetrics) {
+            console.log('Could not read metrics files');
+            process.exit(1);
+          }
+
+          const pr = prMetrics.summary || {};
+          const base = baseMetrics.summary || {};
+
+          // Calculate deltas
+          const complexity = formatDelta(pr.average_complexity || 0, base.average_complexity || 0, 1, true);
+          const nesting = formatDelta(pr.average_nesting_depth || 0, base.average_nesting_depth || 0, 1, true);
+          const commentQuality = formatDelta(pr.comment_quality_score || 0, base.comment_quality_score || 0, 2, false);
+          const files = formatDelta(pr.total_files || 0, base.total_files || 0, 0, false);
+          const lines = formatDelta(pr.total_lines || 0, base.total_lines || 0, 0, false);
+          const functions = formatDelta(pr.total_functions || 0, base.total_functions || 0, 0, false);
+
+          // Generate markdown report
+          let report = `## 📈 Lucent Trend Analysis\n\n`;
+          report += `Comparing **PR branch** with **${process.env.GITHUB_BASE_REF || 'base'}** branch\n\n`;
+
+          report += `### 📊 Metric Changes\n\n`;
+          report += `| Metric | Base | Current | Change | Trend |\n`;
+          report += `|--------|------|---------|--------|-------|\n`;
+          report += `| **Files** | ${base.total_files || 0} | ${files.value} | ${files.delta} | ${files.icon} |\n`;
+          report += `| **Lines** | ${base.total_lines || 0} | ${lines.value} | ${lines.delta} | ${lines.icon} |\n`;
+          report += `| **Functions** | ${base.total_functions || 0} | ${functions.value} | ${functions.delta} | ${functions.icon} |\n`;
+          report += `| **Avg Complexity** | ${(base.average_complexity || 0).toFixed(1)} | ${complexity.value} | ${complexity.delta} | ${complexity.icon} |\n`;
+          report += `| **Avg Nesting** | ${(base.average_nesting_depth || 0).toFixed(1)} | ${nesting.value} | ${nesting.delta} | ${nesting.icon} |\n`;
+          report += `| **Comment Quality** | ${((base.comment_quality_score || 0) * 100).toFixed(0)}% | ${(pr.comment_quality_score * 100).toFixed(0)}% | ${commentQuality.delta} | ${commentQuality.icon} |\n`;
+
+          report += `\n### 💡 Trend Insights\n\n`;
+
+          // Complexity trend
+          const complexityDiff = (pr.average_complexity || 0) - (base.average_complexity || 0);
+          if (complexityDiff > 1.0) {
+            report += `- ${complexity.icon} **Complexity increased by ${complexityDiff.toFixed(1)}** - Consider refactoring to reduce complexity\n`;
+          } else if (complexityDiff < -1.0) {
+            report += `- ${complexity.icon} **Complexity decreased by ${Math.abs(complexityDiff).toFixed(1)}** - Great job simplifying the code!\n`;
+          } else {
+            report += `- ${complexity.icon} **Complexity remained stable** - No significant change\n`;
+          }
+
+          // Nesting trend
+          const nestingDiff = (pr.average_nesting_depth || 0) - (base.average_nesting_depth || 0);
+          if (nestingDiff > 0.5) {
+            report += `- ${nesting.icon} **Nesting depth increased** - Consider flattening nested structures\n`;
+          } else if (nestingDiff < -0.5) {
+            report += `- ${nesting.icon} **Nesting depth decreased** - Code structure improved!\n`;
+          }
+
+          // Comment quality trend
+          const commentDiff = (pr.comment_quality_score || 0) - (base.comment_quality_score || 0);
+          if (commentDiff > 0.1) {
+            report += `- ${commentQuality.icon} **Documentation improved** - Comment quality increased by ${(commentDiff * 100).toFixed(0)}%\n`;
+          } else if (commentDiff < -0.1) {
+            report += `- ${commentQuality.icon} **Documentation declined** - Consider adding more context to comments\n`;
+          }
+
+          // Code size trends
+          const linesDiff = (pr.total_lines || 0) - (base.total_lines || 0);
+          const functionsDiff = (pr.total_functions || 0) - (base.total_functions || 0);
+
+          if (functionsDiff > 0) {
+            const avgLinesPerFunc = linesDiff / functionsDiff;
+            report += `- 📝 **Added ${functionsDiff} function(s)** with an average of ${avgLinesPerFunc.toFixed(1)} lines each\n`;
+          }
+
+          report += `\n### 📊 Quality Score\n\n`;
+
+          let qualityScore = 100;
+          let issues = [];
+
+          if (complexityDiff > 2.0) {
+            qualityScore -= 20;
+            issues.push('High complexity increase');
+          }
+          if (nestingDiff > 1.0) {
+            qualityScore -= 15;
+            issues.push('Deep nesting added');
+          }
+          if (commentDiff < -0.15) {
+            qualityScore -= 10;
+            issues.push('Documentation quality decreased');
+          }
+
+          if (qualityScore >= 90) {
+            report += `**Score: ${qualityScore}/100** ✅ Excellent - Code quality improved or maintained\n`;
+          } else if (qualityScore >= 70) {
+            report += `**Score: ${qualityScore}/100** ⚠️ Good - Minor quality concerns\n`;
+            report += `\nIssues: ${issues.join(', ')}\n`;
+          } else {
+            report += `**Score: ${qualityScore}/100** ❌ Needs Improvement - Significant quality concerns\n`;
+            report += `\nIssues: ${issues.join(', ')}\n`;
+          }
+
+          report += `\n---\n*Analysis powered by [Lucent](https://github.com/ibrahimcesar/lucent) v0.1.0-alpha*\n`;
+
+          fs.writeFileSync('trend-report.md', report);
+          console.log('Trend report generated successfully');
+
+          // Output for GitHub Actions
+          console.log(`quality_score=${qualityScore}`);
+          EOF
+
+          # Run the comparison script
+          GITHUB_BASE_REF="${{ github.base_ref }}" node compare-metrics.js
+
+      - name: 📝 Post Trend Comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            let report = '';
+            try {
+              report = fs.readFileSync('trend-report.md', 'utf8');
+            } catch (error) {
+              report = '⚠️ Could not generate trend analysis report';
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('📈 Lucent Trend Analysis')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: report
+              });
+            }
+
+      - name: 📤 Upload Comparison Data
+        uses: actions/upload-artifact@v3
+        with:
+          name: lucent-trend-comparison
+          path: |
+            pr-metrics.json
+            base-metrics.json
+            trend-report.md
+          retention-days: 90
+
+      - name: 📊 Add Trend Summary
+        if: always()
+        run: |
+          if [ -f trend-report.md ]; then
+            echo "## 📈 Trend Analysis Summary" >> $GITHUB_STEP_SUMMARY
+            cat trend-report.md >> $GITHUB_STEP_SUMMARY
+          fi

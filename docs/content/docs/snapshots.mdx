@@ -1,0 +1,387 @@
+---
+title: Snapshot & History Tracking
+description: Track code quality evolution over time with snapshots
+---
+
+# Snapshot & History Tracking
+
+## Overview
+
+💎 **Lucent** can track your codebase metrics over time by saving snapshots of each analysis. This allows you to:
+
+- 📈 **Track evolution** of code quality over time
+- 🔍 **Compare** current state with previous snapshots
+- 📊 **Visualize trends** in complexity, documentation, and entropy
+- 🎯 **Set goals** and measure progress
+
+---
+
+## How It Works
+
+### Snapshot Structure
+
+Each snapshot is a JSON file containing:
+
+```json
+{
+  "timestamp": "2025-11-23T10:30:00Z",
+  "git_commit": "abc123def456",
+  "git_branch": "main",
+  "summary": {
+    "total_files": 9,
+    "total_lines": 1342,
+    "code_lines": 939,
+    "comment_lines": 189,
+    "blank_lines": 214,
+    "average_entropy": 4.68
+  },
+  "languages": {
+    "Rust": {
+      "file_count": 9,
+      "total_lines": 1342,
+      "code_lines": 939,
+      "comment_lines": 189,
+      "blank_lines": 214,
+      "average_entropy": 4.68
+    }
+  }
+}
+```
+
+### Storage Location
+
+Snapshots are stored in:
+```
+.lucent/history/
+├── 2025-11-23T10-30-00.json
+├── 2025-11-22T15-45-00.json
+└── 2025-11-21T09-15-00.json
+```
+
+---
+
+## Usage
+
+### Enable History Tracking
+
+**Option 1: Configuration File**
+
+Create `.lucent.toml`:
+
+```toml
+[history]
+enabled = true
+snapshot_dir = ".lucent/history"
+max_snapshots = 100
+auto_save = true
+```
+
+**Option 2: Command Line** (Future)
+
+```bash
+# Save a snapshot
+lucent --save-snapshot
+
+# Save with custom name
+lucent --save-snapshot "before-refactor"
+
+# Compare with previous
+lucent --compare-with latest
+
+# Show history
+lucent history
+
+# Show diff between snapshots
+lucent diff <snapshot1> <snapshot2>
+```
+
+---
+
+## Comparing Snapshots
+
+### Example Output (Future Feature)
+
+```bash
+$ lucent compare --from 2025-11-22 --to 2025-11-23
+```
+
+```
+💎 Lucent Snapshot Comparison
+
+📅 From: 2025-11-22T15:45:00 → To: 2025-11-23T10:30:00
+
+📊 Summary Changes
+  Total Files:    8 → 9       (+1, +12.5%)
+  Total Lines:    1200 → 1342 (+142, +11.8%)
+  Code Lines:     850 → 939   (+89, +10.5%)
+  Comment Lines:  180 → 189   (+9, +5.0%)
+  Avg Entropy:    4.5 → 4.68  (+0.18, +4.0%)
+
+📈 Trends
+  ✅ Code documentation improved (+5.0% comments)
+  ⚠️ Complexity increased (+4.0% entropy)
+  ✅ Project growing (+11.8% lines)
+
+🌍 Language Changes
+
+╭──────────┬────────────┬─────────────┬───────────╮
+│ Language │ Files      │ Lines       │ Entropy   │
+├──────────┼────────────┼─────────────┼───────────┤
+│ 🦀 Rust  │ 8 → 9 (+1) │ 1200 → 1342 │ 4.5 → 4.7 │
+╰──────────┴────────────┴─────────────┴───────────╯
+```
+
+---
+
+## Use Cases
+
+### 1. Track Refactoring Impact
+
+**Before refactoring:**
+```bash
+lucent --save-snapshot "before-refactor"
+```
+
+**After refactoring:**
+```bash
+lucent --compare-with before-refactor
+```
+
+**Result:** See if entropy decreased and code quality improved.
+
+### 2. Monitor Project Growth
+
+Save snapshots weekly/monthly to track:
+- Lines of code growth
+- Documentation trends
+- Complexity evolution
+
+### 3. Code Review Process
+
+Compare feature branch against main:
+```bash
+git checkout feature/new-feature
+lucent --save-snapshot "feature-branch"
+
+git checkout main
+lucent --compare-with feature-branch
+```
+
+### 4. CI/CD Integration
+
+```yaml
+# .github/workflows/metrics.yml
+- name: Run Lucent
+  run: |
+    lucent --save-snapshot
+    lucent --compare-with latest
+    lucent --fail-if-entropy-increased
+```
+
+---
+
+## Snapshot Management
+
+### Auto-Cleanup
+
+Configure maximum snapshots:
+
+```toml
+[history]
+max_snapshots = 100  # Keep last 100 snapshots
+```
+
+Old snapshots are automatically removed.
+
+### Manual Management
+
+```bash
+# List all snapshots
+lucent history list
+
+# Delete specific snapshot
+lucent history delete <snapshot-id>
+
+# Clean old snapshots
+lucent history clean --keep 50
+
+# Export snapshot
+lucent history export <snapshot-id> > metrics.json
+```
+
+---
+
+## Visualization (Future)
+
+### Trend Graphs
+
+```bash
+# Generate trend visualization
+lucent trends --last 30d
+
+# Output:
+Entropy Trend (Last 30 days)
+5.0 │                                    ╭─
+4.8 │                              ╭─────╯
+4.6 │                        ╭─────╯
+4.4 │                  ╭─────╯
+4.2 │            ╭─────╯
+4.0 │      ╭─────╯
+3.8 │──────╯
+    └──────────────────────────────────────
+    Nov 1        Nov 15        Nov 30
+```
+
+### HTML Reports
+
+```bash
+# Generate interactive HTML report
+lucent report --output metrics.html
+
+# Features:
+# - Interactive charts
+# - Drill-down by language
+# - Timeline visualization
+# - Export to PDF
+```
+
+---
+
+## Git Integration
+
+### Automatic Git Info
+
+Snapshots automatically capture:
+- Current commit hash
+- Branch name
+- Commit author
+- Commit message
+
+### Per-Commit Analysis
+
+```bash
+# Analyze specific commit
+lucent --commit abc123
+
+# Analyze commit range
+lucent --from abc123 --to def456
+
+# Analyze all commits in branch
+lucent --branch feature/new-feature
+```
+
+---
+
+## Data Format
+
+### Snapshot Schema
+
+```typescript
+interface Snapshot {
+  metadata: {
+    timestamp: string;        // ISO 8601
+    lucent_version: string;   // e.g., "0.2.0"
+    git?: {
+      commit: string;
+      branch: string;
+      author: string;
+      message: string;
+    };
+  };
+  summary: ProjectSummary;
+  languages: Record<string, LanguageMetrics>;
+  files?: FileMetrics[];      // Optional detailed file list
+}
+```
+
+### Export Formats
+
+- **JSON**: Machine-readable
+- **CSV**: Spreadsheet analysis
+- **Markdown**: Documentation
+- **HTML**: Interactive reports
+
+---
+
+## Best Practices
+
+### 1. Regular Snapshots
+
+```bash
+# Add to git hooks
+# .git/hooks/post-commit
+#!/bin/bash
+lucent --save-snapshot --auto
+```
+
+### 2. Tag Important Snapshots
+
+```bash
+lucent --save-snapshot "v1.0.0-release"
+lucent --save-snapshot "before-major-refactor"
+```
+
+### 3. Set Quality Goals
+
+```bash
+# Compare against baseline
+lucent --compare-with baseline --fail-if-worse
+```
+
+### 4. Team Dashboards
+
+Export snapshots to team dashboard:
+```bash
+lucent --snapshot --upload https://metrics.company.com/api
+```
+
+---
+
+## Configuration Reference
+
+```toml
+[history]
+# Enable/disable history tracking
+enabled = true
+
+# Where to store snapshots
+snapshot_dir = ".lucent/history"
+
+# Maximum number of snapshots to keep (0 = unlimited)
+max_snapshots = 100
+
+# Automatically save snapshot on each run
+auto_save = true
+
+# Save detailed per-file metrics (larger snapshots)
+save_file_details = false
+
+# Compression for snapshots
+compress = true  # gzip compression
+
+[history.retention]
+# Auto-delete snapshots older than X days
+max_age_days = 365
+
+# Keep at least one snapshot per time period
+keep_daily = 30   # Last 30 days
+keep_weekly = 12  # Last 12 weeks
+keep_monthly = 12 # Last 12 months
+```
+
+---
+
+## Future Enhancements
+
+- 🎯 **Goals & Targets**: Set and track quality goals
+- 🔔 **Alerts**: Notify when metrics deviate
+- 📊 **Dashboards**: Real-time team dashboards
+- 🤖 **ML Predictions**: Predict future trends
+- 🔄 **Compare PRs**: Auto-compare pull requests
+- 📈 **Regression Detection**: Alert on quality regressions
+
+---
+
+**Status:** 🚧 Planned for Phase 3 (v0.3.0-beta)
+
+**Last Updated:** 2025-11-23

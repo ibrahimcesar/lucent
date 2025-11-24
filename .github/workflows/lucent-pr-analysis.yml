@@ -1,0 +1,191 @@
+name: 💎 Lucent Code Analysis
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+    types: [ opened, synchronize, reopened ]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  analyze:
+    name: Analyze Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: 🦀 Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: 📦 Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: 🔨 Build Lucent
+        run: cargo build --release
+
+      - name: 📊 Run Lucent Analysis
+        id: analysis
+        run: |
+          # Run Lucent on the entire codebase
+          echo "## 💎 Lucent Code Analysis Report" > lucent-report.md
+          echo "" >> lucent-report.md
+
+          # Generate markdown report
+          cargo run --release -- . --format markdown >> lucent-report.md 2>&1 || true
+
+          # Also generate JSON for programmatic access
+          cargo run --release -- . --format json > lucent-metrics.json 2>&1 || true
+
+          # Extract key metrics from JSON
+          if [ -f lucent-metrics.json ]; then
+            COMPLEXITY=$(jq -r '.summary.average_complexity // 0' lucent-metrics.json)
+            NESTING=$(jq -r '.summary.average_nesting_depth // 0' lucent-metrics.json)
+            COMMENT_QUALITY=$(jq -r '.summary.comment_quality_score // 0' lucent-metrics.json)
+
+            echo "complexity=$COMPLEXITY" >> $GITHUB_OUTPUT
+            echo "nesting=$NESTING" >> $GITHUB_OUTPUT
+            echo "comment_quality=$COMMENT_QUALITY" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 📝 Post PR Comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            // Read the markdown report
+            let report = '';
+            try {
+              report = fs.readFileSync('lucent-report.md', 'utf8');
+            } catch (error) {
+              report = '⚠️ Could not generate Lucent report';
+            }
+
+            // Create or update comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('💎 Lucent Code Analysis Report')
+            );
+
+            const commentBody = report;
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
+
+      - name: 🚦 Quality Gate Check
+        id: quality_gate
+        run: |
+          # Read metrics from JSON
+          if [ ! -f lucent-metrics.json ]; then
+            echo "⚠️ No metrics file found, skipping quality gate"
+            exit 0
+          fi
+
+          COMPLEXITY=$(jq -r '.summary.average_complexity // 0' lucent-metrics.json)
+          NESTING=$(jq -r '.summary.average_nesting_depth // 0' lucent-metrics.json)
+          COMMENT_QUALITY=$(jq -r '.summary.comment_quality_score // 0' lucent-metrics.json)
+
+          echo "📊 Quality Gate Thresholds:"
+          echo "  Complexity: $COMPLEXITY (threshold: 20.0)"
+          echo "  Nesting: $NESTING (threshold: 5.0)"
+          echo "  Comment Quality: $COMMENT_QUALITY (threshold: 0.3)"
+
+          FAILED=0
+
+          # Check complexity threshold
+          if (( $(echo "$COMPLEXITY > 20.0" | bc -l) )); then
+            echo "❌ FAILED: Average complexity ($COMPLEXITY) exceeds threshold (20.0)"
+            FAILED=1
+          fi
+
+          # Check nesting threshold
+          if (( $(echo "$NESTING > 5.0" | bc -l) )); then
+            echo "❌ FAILED: Average nesting depth ($NESTING) exceeds threshold (5.0)"
+            FAILED=1
+          fi
+
+          # Check comment quality threshold
+          if (( $(echo "$COMMENT_QUALITY < 0.3" | bc -l) )); then
+            echo "⚠️ WARNING: Comment quality ($COMMENT_QUALITY) below recommended threshold (0.3)"
+            # Don't fail on comment quality, just warn
+          fi
+
+          if [ $FAILED -eq 1 ]; then
+            echo "🚫 Quality gate FAILED - Code quality thresholds exceeded"
+            exit 1
+          else
+            echo "✅ Quality gate PASSED - All thresholds met"
+          fi
+
+      - name: 📤 Upload Analysis Artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: lucent-analysis
+          path: |
+            lucent-report.md
+            lucent-metrics.json
+          retention-days: 30
+
+      - name: 📊 Add Job Summary
+        if: always()
+        run: |
+          if [ -f lucent-metrics.json ]; then
+            echo "## 💎 Lucent Analysis Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            COMPLEXITY=$(jq -r '.summary.average_complexity // "N/A"' lucent-metrics.json)
+            NESTING=$(jq -r '.summary.average_nesting_depth // "N/A"' lucent-metrics.json)
+            FILES=$(jq -r '.summary.total_files // "N/A"' lucent-metrics.json)
+            LINES=$(jq -r '.summary.total_lines // "N/A"' lucent-metrics.json)
+
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Files Analyzed | $FILES |" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Lines | $LINES |" >> $GITHUB_STEP_SUMMARY
+            echo "| Avg Complexity | $COMPLEXITY |" >> $GITHUB_STEP_SUMMARY
+            echo "| Avg Nesting | $NESTING |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📄 [View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          fi

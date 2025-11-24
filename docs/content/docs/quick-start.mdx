@@ -1,0 +1,219 @@
+---
+title: Quick Start
+description: Get started with Lucent in minutes
+---
+
+# Quick Start
+
+This guide will help you get started with Lucent code analysis in just a few minutes.
+
+## Basic Usage
+
+### Analyze Current Directory
+
+The simplest way to use Lucent is to analyze your current directory:
+
+```bash
+lucent .
+```
+
+This will:
+- Scan all source files (respecting `.gitignore`)
+- Calculate metrics for all supported languages
+- Display a beautiful terminal report
+
+### Analyze Specific Path
+
+You can analyze any directory or file:
+
+```bash
+# Analyze a specific directory
+lucent src/
+
+# Analyze a single file
+lucent src/main.rs
+```
+
+## Output Formats
+
+Lucent supports multiple output formats:
+
+### Pretty Terminal (Default)
+
+```bash
+lucent .
+```
+
+Displays colorful, emoji-rich output with ASCII visualizations.
+
+### JSON
+
+```bash
+lucent --format json
+```
+
+Perfect for programmatic processing or CI/CD pipelines.
+
+### Markdown
+
+```bash
+lucent --format markdown > report.md
+```
+
+Generate markdown reports for documentation or PRs.
+
+### CSV
+
+```bash
+lucent --format csv > metrics.csv
+```
+
+Export to CSV for spreadsheet analysis.
+
+### HTML
+
+```bash
+lucent --format html > report.html
+```
+
+Interactive HTML report with Chart.js visualizations, dark mode, and export features.
+
+## Verbose Output
+
+Get detailed per-file metrics:
+
+```bash
+lucent --verbose --per-file
+```
+
+## Quality Gates
+
+Enforce quality thresholds (useful for CI/CD):
+
+```bash
+# Fail if complexity is too high
+lucent --max-complexity 10.0
+
+# Fail if maintainability is too low
+lucent --min-maintainability 70.0
+
+# Combine multiple thresholds
+lucent --max-complexity 15.0 --max-nesting 4.0 --max-todos 10
+
+# Treat warnings as errors
+lucent --max-function-length 50.0 --fail-on-warning
+```
+
+The command exits with code 1 if any threshold is violated.
+
+## Configuration File
+
+Create a `.lucent.toml` file in your project root:
+
+```toml
+[thresholds]
+max_cyclomatic_complexity = 15.0
+max_nesting_depth = 4.0
+min_maintainability_index = 65.0
+
+[quality_gates]
+fail_on_complexity = true
+fail_on_nesting = true
+warn_only = false
+
+[plugins]
+enabled = ["tree-sitter"]
+```
+
+Then simply run:
+
+```bash
+lucent  # Automatically loads .lucent.toml
+```
+
+CLI flags override config file settings:
+
+```bash
+lucent --max-complexity 20.0  # Overrides config
+```
+
+## Example Output
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  💎 Lucent Analysis Results
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 Summary
+  Total Files:  9
+  Total Lines:  1342
+  Code Lines:   939
+  Avg Complexity: 12.3
+  Avg Nesting: 4.2
+  Maintainability: B (72.5)
+
+🌍 By Language
+
+┌──────────┬───────┬───────┬──────┬────────────┬─────────┐
+│ Language │ Files │ Lines │ Code │ Complexity │ Quality │
+├──────────┼───────┼───────┼──────┼────────────┼─────────┤
+│ 🦀 Rust  │     9 │  1342 │  939 │       12.3 │    B    │
+└──────────┴───────┴───────┴──────┴────────────┴─────────┘
+
+💡 Insights
+  ⚠️ High complexity: 12.3 (consider refactoring)
+  ✓ Short functions: 14.1 lines avg
+  ✓ Well documented: 14.1% comments
+```
+
+## Common Workflows
+
+### Local Development
+
+```bash
+# Quick check before commit
+lucent .
+
+# Detailed analysis
+lucent --verbose --per-file --format markdown > pre-commit-report.md
+```
+
+### CI/CD Pipeline
+
+```bash
+# In your CI script
+lucent --format json --max-complexity 15.0 --min-maintainability 65.0
+
+# Exit code 0 = pass, 1 = quality gates failed
+```
+
+### Code Review
+
+```bash
+# Generate HTML report for PR
+lucent --format html > analysis-report.html
+
+# Compare with previous snapshot
+lucent snapshot compare
+```
+
+## Next Steps
+
+- [Learn about Metrics](/docs/metrics) - Understand what's being measured
+- [Configure Thresholds](/docs/thresholds) - Set up quality gates
+- [CI/CD Integration](/docs/ci-quality-gates) - Automate checks
+- [Plugin System](/docs/plugin-guide) - Extend Lucent with custom analyzers
+
+## Getting Help
+
+```bash
+# See all available options
+lucent --help
+
+# Check version
+lucent --version
+```
+
+For more help, visit:
+- [GitHub Issues](https://github.com/anthropics/lucent/issues)
+- [Discussions](https://github.com/anthropics/lucent/discussions)

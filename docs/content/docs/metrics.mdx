@@ -1,0 +1,300 @@
+---
+title: Metrics Documentation
+description: Understanding code quality metrics in Lucent
+---
+
+# Metrics Documentation
+
+## Overview
+
+💎 **Lucent** calculates various code quality metrics to help you understand your codebase. This document explains each metric, how it's calculated, and how to interpret the results.
+
+---
+
+## Core Metrics
+
+### 1. Lines of Code (LOC)
+
+#### Total Lines
+The complete count of all lines in the file, including:
+- Code lines
+- Comment lines
+- Blank lines
+
+**Use case:** Understanding overall file and project size.
+
+#### Code Lines
+Lines that contain actual executable code, excluding:
+- Comments (both line and block comments)
+- Blank/whitespace-only lines
+
+**Calculation:**
+```rust
+for each line in file:
+    if line is blank -> skip
+    if line is in block comment -> skip
+    if line starts with line comment -> skip
+    else -> count as code line
+```
+
+**Use case:** Measuring actual implementation size.
+
+#### Comment Lines
+Lines containing comments (documentation or inline explanations).
+
+Supports:
+- Line comments (`//`, `#`, etc.)
+- Block comments (`/* */`, `""" """`, etc.)
+
+**Use case:** Assessing documentation coverage.
+
+#### Blank Lines
+Empty lines or lines with only whitespace.
+
+**Use case:** Understanding code spacing and readability.
+
+---
+
+### 2. Shannon Entropy
+
+**What it measures:** Information density and complexity of your code.
+
+#### Calculation Method
+
+Shannon entropy is calculated using information theory:
+
+```
+H = -Σ(p(x) * log₂(p(x)))
+```
+
+Where:
+- `H` = entropy value
+- `p(x)` = probability of character `x` appearing
+- `Σ` = sum across all unique characters
+
+#### Implementation
+
+```rust
+fn calculate_entropy(content: &str) -> f64 {
+    // 1. Count frequency of each character
+    let mut char_counts = HashMap::new();
+    for ch in content.chars() {
+        *char_counts.entry(ch).or_insert(0) += 1;
+    }
+
+    // 2. Calculate probability and entropy
+    let total = content.len() as f64;
+    let mut entropy = 0.0;
+
+    for count in char_counts.values() {
+        let probability = *count as f64 / total;
+        entropy -= probability * probability.log2();
+    }
+
+    entropy
+}
+```
+
+#### Interpretation
+
+| Entropy Range | Interpretation | Action |
+|--------------|----------------|--------|
+| **0.0 - 2.0** | Very low complexity<br/>Highly repetitive code | ⚠️ Might indicate copy-paste or generated code |
+| **2.0 - 3.5** | Low complexity<br/>Simple, clear code | ✅ Good for utilities and helpers |
+| **3.5 - 4.5** | Moderate complexity<br/>Balanced code | ✅ Healthy range for most code |
+| **4.5 - 5.5** | High complexity<br/>Dense information | ⚠️ Consider refactoring for clarity |
+| **5.5+** | Very high complexity<br/>Very dense code | 🔴 Strong candidate for refactoring |
+
+#### What Affects Entropy?
+
+**Increases entropy (higher complexity):**
+- Diverse character set (symbols, numbers, letters)
+- Many unique identifiers
+- Complex logic with varied operators
+- Dense one-liners
+
+**Decreases entropy (lower complexity):**
+- Repetitive code patterns
+- Long variable names repeated often
+- Large blocks of whitespace
+- Generated boilerplate
+
+#### Example
+
+```rust
+// Low entropy (2.5) - repetitive
+let x = 0;
+let y = 0;
+let z = 0;
+
+// High entropy (4.8) - diverse
+fn complex_calc(a: i32, b: f64) -> Result<Vec<String>, Error> {
+    Ok(vec![format!("{}:{}", a, b)])
+}
+```
+
+---
+
+### 3. Code Density
+
+**Formula:**
+```
+Code Density = (Code Lines / Total Lines) × 100%
+```
+
+#### Current Thresholds
+
+| Density | Interpretation | Typical Scenario |
+|---------|----------------|------------------|
+| **< 30%** | Low density | Documentation-heavy, many comments |
+| **30-50%** | Moderate | Well-documented code |
+| **50-70%** | Good balance | ✅ **Default healthy range** |
+| **70-85%** | High density | Production code, light comments |
+| **> 85%** | Very high | Minimal documentation (⚠️ review) |
+
+**Note:** These are *current defaults* and will be configurable via `.lucent.toml` in the future.
+
+#### Why It Matters
+
+- **Too low:** May indicate over-documentation or unnecessary whitespace
+- **Too high:** May lack sufficient documentation
+- **Sweet spot (50-70%):** Good balance of code and documentation
+
+---
+
+### 4. Comment Ratio
+
+**Formula:**
+```
+Comment Ratio = (Comment Lines / Total Lines) × 100%
+```
+
+#### Current Thresholds
+
+| Ratio | Interpretation | Recommendation |
+|-------|----------------|----------------|
+| **< 10%** | Under-documented | ⚠️ Add more documentation |
+| **10-20%** | Light documentation | Consider adding more for complex code |
+| **20-30%** | Well documented | ✅ **Healthy range** |
+| **> 30%** | Heavily documented | Good for libraries and APIs |
+
+**Note:** Will be configurable in future releases.
+
+---
+
+## Aggregate Metrics
+
+### Average Entropy
+
+Average Shannon entropy across all files in a language or project.
+
+**Formula:**
+```
+Avg Entropy = Σ(entropy × file_count) / total_files
+```
+
+**Interpretation:**
+- Indicates overall codebase complexity
+- Useful for comparing projects or tracking evolution over time
+
+---
+
+## Future Metrics (Roadmap)
+
+### Planned for Phase 2
+- **Cyclomatic Complexity**: Measure decision points
+- **Function Length**: Average and max function sizes
+- **Nesting Depth**: How deeply code is nested
+
+### Planned for Phase 3
+- **Cognitive Complexity**: Human-focused complexity metric
+- **Halstead Metrics**: Program volume and difficulty
+- **Maintainability Index**: Overall maintainability score (0-100)
+- **Code Duplication**: Percentage of duplicated code
+
+### Planned for Phase 4
+- **Custom Metrics**: User-defined metric calculations
+- **Historical Trends**: Evolution over time
+
+---
+
+## Metric Interpretation Examples
+
+### Example 1: Well-Balanced File
+
+```
+Total Lines: 200
+Code Lines: 140
+Comment Lines: 40
+Blank Lines: 20
+Entropy: 4.2
+
+Code Density: 70%
+Comment Ratio: 20%
+```
+
+**Assessment:** ✅ Healthy balance of code and documentation.
+
+### Example 2: High Complexity Warning
+
+```
+Total Lines: 150
+Code Lines: 130
+Comment Lines: 5
+Blank Lines: 15
+Entropy: 5.1
+
+Code Density: 87%
+Comment Ratio: 3%
+```
+
+**Assessment:** ⚠️ High entropy + low documentation = refactoring candidate.
+
+### Example 3: Over-Documented
+
+```
+Total Lines: 300
+Code Lines: 80
+Comment Lines: 180
+Blank Lines: 40
+Entropy: 3.2
+
+Code Density: 27%
+Comment Ratio: 60%
+```
+
+**Assessment:** ⚠️ Very low density, possibly over-documented.
+
+---
+
+## Configuration (Coming Soon)
+
+Future `.lucent.toml` will allow customization:
+
+```toml
+[thresholds]
+# Entropy thresholds
+entropy.low = 3.5
+entropy.high = 4.5
+
+# Code density
+density.min = 50.0
+density.max = 70.0
+
+# Comment ratio
+comments.min = 10.0
+comments.max = 30.0
+```
+
+---
+
+## Resources
+
+- [Shannon Entropy (Wikipedia)](https://en.wikipedia.org/wiki/Entropy_(information_theory))
+- [Code Metrics Best Practices](https://github.com/ibrahimcesar/lucent)
+- [Lucent Documentation](./README.md)
+
+---
+
+**Last Updated:** 2025-11-23
+**Version:** 0.1.0-alpha

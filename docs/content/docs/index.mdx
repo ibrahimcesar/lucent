@@ -1,0 +1,74 @@
+---
+title: Introduction
+description: Crystal clear code insights - Fast, extensible code metrics analyzer built in Rust
+---
+
+# Lucent 💎
+
+_Crystal clear code insights_
+
+**Lucent** is a fast, extensible code metrics analyzer built in Rust. It helps you understand code quality, complexity, and maintainability across multiple programming languages.
+
+## Features
+
+- 🚀 **Fast** - Rust-powered analysis for large codebases
+- 🌍 **Multi-language** - 21+ languages supported (Rust, Python, JS/TS, Go, Java, C/C++, C#, Ruby, PHP, Swift, Kotlin, Dart, Scala, Elixir, Haskell, Clojure, Lua, Shell, SQL)
+- 📊 **70+ Metrics Catalog** - Comprehensive roadmap from basic LOC to advanced SPACE metrics
+- 💎 **Beautiful Output** - Rich colors, emojis, and ASCII charts in terminal, JSON, Markdown, and CSV exports
+- 🔍 **Code Quality** - Shannon entropy, code density, comment ratio & quality analysis, TODO/FIXME/HACK detection
+- 👃 **Code Smells** - Automatic detection of long functions, long parameter lists, deep nesting, and magic numbers
+- 📈 **Maintainability Index** - Microsoft MI formula with A-F letter grades for code maintainability assessment
+- 📊 **Visual Analytics** - ASCII bar charts for complexity and nesting depth visualization
+- 🎨 **Multiple Outputs** - Pretty terminal, JSON, Markdown, CSV, and interactive HTML reports with charts
+- 🌐 **Interactive HTML Reports** - Beautiful, self-contained reports with Chart.js visualizations, dark mode, and export capabilities
+- ⚙️ **Configurable** - Metric profiles and thresholds via `.lucent.toml`
+- ⚡ **CI/CD Ready** - GitHub Actions workflows for PR analysis, quality gates, and automated testing
+
+## Status
+
+**Phase 1 Complete!** ✅ - Core architecture implemented and working.
+
+Current version: `0.1.0-alpha`
+
+## Quick Start
+
+```bash
+# Install from source
+git clone https://github.com/ibrahimcesar/lucent
+cd lucent
+cargo build --release
+
+# Analyze your code
+lucent .
+
+# Output as JSON
+lucent --format json
+
+# Quality gates for CI/CD
+lucent --max-complexity 10.0 --min-maintainability 70.0
+```
+
+## Supported Languages
+
+### Currently Supported (21+) ✅
+
+**Tier 1:** 🦀 Rust • 🐍 Python • 📜 JavaScript • 💠 TypeScript • 🐹 Go • ☕ Java • ⚙️ C++ • 🔧 C • #️⃣ C# • 💎 Ruby • 🐘 PHP • 🦅 Swift • 🎯 Kotlin
+
+**Tier 2:** 🎯 Dart • 🔴 Scala • 💧 Elixir • λ Haskell • 🌀 Clojure • 🌙 Lua • 🐚 Shell • 🗄️ SQL
+
+## Documentation
+
+Explore the documentation to learn more about:
+
+- [Installation](/docs/installation) - Get started with Lucent
+- [Metrics](/docs/metrics) - Understanding code metrics
+- [Thresholds](/docs/thresholds) - Quality gates and thresholds
+- [Plugin System](/docs/plugin-guide) - Extending Lucent with plugins
+- [HTML Reports](/docs/html-reports) - Interactive visualization
+- [CI/CD Integration](/docs/ci-quality-gates) - Automate code quality checks
+
+## Community
+
+- [GitHub Repository](https://github.com/anthropics/lucent)
+- [Issue Tracker](https://github.com/anthropics/lucent/issues)
+- [Discussions](https://github.com/anthropics/lucent/discussions)

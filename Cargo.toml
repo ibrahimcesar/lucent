@@ -2,7 +2,7 @@
 name = "lucent-code"
 version = "0.0.1"
 edition = "2021"
-authors = ["Your Name <email@ibrahimcesar.com>"]
+authors = ["Ibrahim Cesar <email@ibrahimcesar.com>"]
 license = "MIT"
 description = "Crystal clear code insights - Fast code metrics analyzer"
 homepage = "https://github.com/ibrahimcesar/lucent"
@@ -36,14 +36,25 @@ thiserror = "1.0"
 # File system and path handling
 walkdir = "2.5"
 ignore = "0.4"  # Respects .gitignore
+dirs = "5.0"  # Home directory detection
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+toml = "0.8"
 
 # Output formatting
 colored = "2.1"
 tabled = "0.15"
+
+# Date/time for timestamps
+chrono = { version = "0.4", features = ["serde"] }
+
+# Regex for pattern matching
+regex = "1.10"
+
+# Git integration
+git2 = "0.18"
 
 # Future: Tree-sitter for parsing (commented out for now)
 # tree-sitter = "0.20"

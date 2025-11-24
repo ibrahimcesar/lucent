@@ -1,0 +1,140 @@
+# Lucent Quality Gate Configuration Example
+# Copy this file to your repository and customize thresholds
+
+# Quality Gate Thresholds
+thresholds:
+  # Cyclomatic Complexity
+  # Default: 20.0
+  # Recommended ranges:
+  #   - Strict: 10.0
+  #   - Standard: 15.0-20.0
+  #   - Relaxed: 25.0-30.0
+  complexity:
+    max: 20.0
+    warn_at: 15.0
+
+  # Nesting Depth
+  # Default: 5.0
+  # Recommended ranges:
+  #   - Strict: 3.0
+  #   - Standard: 4.0-5.0
+  #   - Relaxed: 6.0-7.0
+  nesting:
+    max: 5.0
+    warn_at: 4.0
+
+  # Comment Quality Score (0.0 - 1.0)
+  # Default: 0.3 (30%)
+  # Recommended ranges:
+  #   - Strict: 0.5 (50%)
+  #   - Standard: 0.3-0.4 (30-40%)
+  #   - Relaxed: 0.2 (20%)
+  comment_quality:
+    min: 0.3
+    warn_at: 0.4
+
+  # Function Length (lines)
+  # Default: 50.0
+  # Recommended ranges:
+  #   - Strict: 20.0
+  #   - Standard: 30.0-50.0
+  #   - Relaxed: 75.0-100.0
+  function_length:
+    max: 50.0
+    warn_at: 30.0
+
+  # Code Density (percentage of code lines to total lines)
+  # Default: 0.5-0.8 (50-80%)
+  # Recommended ranges:
+  #   - Well-documented: 0.5-0.7 (50-70%)
+  #   - Balanced: 0.6-0.8 (60-80%)
+  #   - Code-heavy: 0.7-0.9 (70-90%)
+  code_density:
+    min: 0.5
+    max: 0.8
+
+# Workflow Behavior
+workflow:
+  # Fail the build if thresholds are exceeded
+  fail_on_threshold: true
+
+  # Post PR comments
+  post_comments: true
+
+  # Run on draft PRs
+  run_on_draft: false
+
+  # Languages to analyze (empty = all supported)
+  # languages:
+  #   - rust
+  #   - python
+  #   - javascript
+
+# Diff Mode Configuration
+diff_mode:
+  # Only analyze changed files
+  enabled: true
+
+  # Minimum lines changed to trigger analysis
+  min_lines_changed: 5
+
+  # Include deleted files in analysis
+  include_deleted: false
+
+# Reporting
+reporting:
+  # Upload analysis artifacts
+  upload_artifacts: true
+
+  # Retention days for artifacts
+  artifact_retention_days: 30
+
+  # Include complexity visualizations in comments
+  include_charts: true
+
+# Examples of different configurations
+
+# Example: Strict Enterprise Configuration
+# thresholds:
+#   complexity:
+#     max: 10.0
+#     warn_at: 8.0
+#   nesting:
+#     max: 3.0
+#     warn_at: 2.0
+#   comment_quality:
+#     min: 0.5
+#     warn_at: 0.6
+#   function_length:
+#     max: 20.0
+#     warn_at: 15.0
+
+# Example: Open Source Project Configuration
+# thresholds:
+#   complexity:
+#     max: 15.0
+#     warn_at: 12.0
+#   nesting:
+#     max: 4.0
+#     warn_at: 3.0
+#   comment_quality:
+#     min: 0.4
+#     warn_at: 0.5
+#   function_length:
+#     max: 40.0
+#     warn_at: 25.0
+
+# Example: Legacy Codebase (Gradual Improvement)
+# thresholds:
+#   complexity:
+#     max: 30.0
+#     warn_at: 25.0
+#   nesting:
+#     max: 6.0
+#     warn_at: 5.0
+#   comment_quality:
+#     min: 0.2
+#     warn_at: 0.3
+#   function_length:
+#     max: 100.0
+#     warn_at: 75.0

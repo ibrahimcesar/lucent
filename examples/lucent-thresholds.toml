@@ -1,0 +1,141 @@
+# Example .lucent.toml with Quality Thresholds
+# Copy this to your project root as .lucent.toml
+
+[project]
+name = "my-project"
+version = "1.0.0"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Quality Thresholds
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# These thresholds are enforced when running `lucent` without CLI flags
+# CLI flags take precedence over these settings
+
+[thresholds]
+# Maximum allowed cyclomatic complexity (per function average)
+# Recommended: 10 (strict), 15 (moderate), 20 (lenient)
+max_cyclomatic_complexity = 15.0
+
+# Maximum allowed cognitive complexity
+max_cognitive_complexity = 25.0
+
+# Maximum allowed nesting depth
+# Recommended: 3 (strict), 4 (moderate), 5 (lenient)
+max_nesting_depth = 4.0
+
+# Maximum allowed function length (lines)
+# Recommended: 40 (strict), 50 (moderate), 60 (lenient)
+max_function_length = 50
+
+# Minimum required comment quality (0.0-1.0)
+min_comment_quality = 0.3
+
+# Minimum required maintainability index (0-100)
+# Recommended: 75 (strict), 65 (moderate), 50 (lenient)
+min_maintainability_index = 65.0
+
+# Code density limits (0.0-1.0)
+max_code_density = 0.8
+min_code_density = 0.5
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Code Smell Limits
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Maximum allowed code smells (aggregate becomes --max-code-smells)
+max_long_functions = 10          # Functions >50 lines
+max_function_parameters = 5       # Parameters per function
+max_deep_nesting_instances = 5    # Nesting >4 levels
+max_magic_numbers = 20           # Unnamed numeric literals
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Quality Gates for CI/CD
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[quality_gates]
+# Fail build if thresholds exceeded
+fail_on_complexity = true
+fail_on_nesting = true
+fail_on_maintainability = true
+fail_on_code_smells = false
+
+# Only warn, don't fail build (overrides all fail_on_* settings)
+# Set to false to enforce quality gates
+warn_only = false
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Ignore Patterns
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ignore]
+patterns = [
+    "target/",
+    "node_modules/",
+    "vendor/",
+    "dist/",
+    "build/",
+    "*.min.js",
+    "*.bundle.js",
+]
+
+use_lucentignore = true
+use_gitignore = true
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Language-Specific Thresholds
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Override thresholds for specific languages
+# Useful when different languages have different complexity norms
+
+[languages.rust]
+max_cyclomatic_complexity = 12.0
+max_nesting_depth = 3.0
+max_function_length = 40
+
+[languages.python]
+max_cyclomatic_complexity = 15.0
+max_nesting_depth = 4.0
+max_function_length = 50
+
+[languages.javascript]
+max_cyclomatic_complexity = 18.0
+max_nesting_depth = 5.0
+max_function_length = 45
+
+[languages.typescript]
+max_cyclomatic_complexity = 15.0
+max_nesting_depth = 4.0
+
+[languages.go]
+max_cyclomatic_complexity = 15.0
+max_nesting_depth = 4.0
+max_function_length = 50
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Output Configuration
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[output]
+default_format = "pretty"
+show_per_file = false
+colorize = true
+charts_in_html = true
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Usage Examples
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 1. Use thresholds from this file:
+#    lucent
+
+# 2. Override with CLI flags (CLI takes precedence):
+#    lucent --max-complexity 10.0
+
+# 3. Use custom config file:
+#    lucent --config-file my-strict-config.toml
+
+# 4. Combine config + CLI overrides:
+#    lucent --max-complexity 20.0  # Overrides file setting
+
+# 5. Disable all thresholds:
+#    lucent  # Just run without any --max-* flags and without this file

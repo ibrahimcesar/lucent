@@ -1,0 +1,142 @@
+name: 💎 Lucent Diff Analysis (Changed Files Only)
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+    types: [ opened, synchronize, reopened ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  diff-analysis:
+    name: Analyze Changed Files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🦀 Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: 📦 Cache Cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: 🔨 Build Lucent
+        run: cargo build --release
+
+      - name: 🔍 Get Changed Files
+        id: changed_files
+        run: |
+          # Get the list of changed files
+          git fetch origin ${{ github.base_ref }}
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.(rs|py|js|ts|go|java|cpp|c|cs|rb|php|swift|kt|dart|scala|ex|hs|clj|lua|sh|sql)$' || true)
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No source files changed"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changed files:"
+            echo "$CHANGED_FILES"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+
+            # Save changed files to a file
+            echo "$CHANGED_FILES" > changed_files.txt
+          fi
+
+      - name: 📊 Analyze Changed Files
+        if: steps.changed_files.outputs.has_changes == 'true'
+        run: |
+          echo "## 💎 Lucent Diff Analysis - Changed Files" > diff-report.md
+          echo "" >> diff-report.md
+          echo "Analyzing $(wc -l < changed_files.txt) changed file(s)" >> diff-report.md
+          echo "" >> diff-report.md
+
+          # Create a temporary directory for metrics
+          mkdir -p metrics_output
+
+          # Analyze each changed file
+          while IFS= read -r file; do
+            if [ -f "$file" ]; then
+              echo "### 📄 \`$file\`" >> diff-report.md
+              echo "" >> diff-report.md
+
+              # Run Lucent on individual file
+              cargo run --release -- "$file" --format markdown >> diff-report.md 2>&1 || echo "⚠️ Could not analyze $file" >> diff-report.md
+
+              echo "" >> diff-report.md
+              echo "---" >> diff-report.md
+              echo "" >> diff-report.md
+            fi
+          done < changed_files.txt
+
+      - name: 📝 Post Diff Analysis Comment
+        if: steps.changed_files.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            let report = '';
+            try {
+              report = fs.readFileSync('diff-report.md', 'utf8');
+            } catch (error) {
+              report = '⚠️ Could not generate diff analysis report';
+            }
+
+            // Limit comment size (GitHub has a 65536 char limit)
+            if (report.length > 65000) {
+              report = report.substring(0, 65000) + '\n\n... (report truncated due to size)';
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('💎 Lucent Diff Analysis')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: report
+              });
+            }
+
+      - name: 📤 Upload Diff Analysis
+        if: steps.changed_files.outputs.has_changes == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: lucent-diff-analysis
+          path: |
+            diff-report.md
+            changed_files.txt
+          retention-days: 30

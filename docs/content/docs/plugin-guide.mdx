@@ -1,0 +1,506 @@
+---
+title: Plugin Developer Guide
+description: Create custom analyzers and extend Lucent with the plugin API
+---
+
+# Lucent Plugin Developer Guide
+
+This guide explains how to create plugins for Lucent to extend its capabilities.
+
+## 📚 Table of Contents
+
+- [Overview](#overview)
+- [Plugin API](#plugin-api)
+- [Creating a Plugin](#creating-a-plugin)
+- [Built-in Plugins](#built-in-plugins)
+- [Configuration](#configuration)
+- [Example: Tree-sitter Plugin](#example-tree-sitter-plugin)
+- [Testing Plugins](#testing-plugins)
+- [Publishing Plugins](#publishing-plugins)
+
+## Overview
+
+Lucent's plugin system allows you to:
+
+- **Extend Language Support** - Add support for new programming languages
+- **Improve Accuracy** - Use AST-based analysis (e.g., tree-sitter) instead of regex
+- **Custom Metrics** - Implement domain-specific code quality metrics
+- **Output Formats** - Add custom report formats
+
+### Architecture
+
+```
+┌─────────────────┐
+│  Lucent Core    │
+│  (Built-in)     │
+└────────┬────────┘
+         │
+         │ Plugin API
+         │
+┌────────┴────────────────────────────────┐
+│                                         │
+│  ┌──────────────┐  ┌─────────────────┐ │
+│  │ Regex Plugin │  │ Tree-sitter     │ │
+│  │ (Default)    │  │ Plugin          │ │
+│  └──────────────┘  └─────────────────┘ │
+│                                         │
+│  ┌──────────────┐  ┌─────────────────┐ │
+│  │ Custom       │  │ Your Plugin     │ │
+│  │ Metrics      │  │ Here!           │ │
+│  └──────────────┘  └─────────────────┘ │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+## Plugin API
+
+### Core Trait
+
+```rust
+use lucent::plugin::{MetricProvider, PluginMetadata, PluginCapability};
+use lucent::metrics::FileMetrics;
+use anyhow::Result;
+use std::path::Path;
+
+pub trait MetricProvider: Send + Sync {
+    /// Get plugin metadata
+    fn metadata(&self) -> PluginMetadata;
+
+    /// Get supported languages
+    fn supported_languages(&self) -> Vec<&str>;
+
+    /// Analyze source code
+    fn analyze(&self, path: &Path, source: &str, language: &str)
+        -> Result<Option<FileMetrics>>;
+
+    /// Plugin priority (higher = preferred)
+    fn priority(&self) -> u32 { 50 }
+}
+```
+
+### Plugin Metadata
+
+```rust
+pub struct PluginMetadata {
+    pub name: String,
+    pub version: String,
+    pub author: String,
+    pub description: String,
+    pub api_version: String,
+    pub capabilities: Vec<PluginCapability>,
+}
+```
+
+### Plugin Capabilities
+
+```rust
+pub enum PluginCapability {
+    /// Provides metrics for specific languages
+    MetricProvider(Vec<String>),
+
+    /// Provides custom output formatting
+    OutputFormatter(String),
+
+    /// Provides additional quality checks
+    QualityChecker,
+}
+```
+
+## Creating a Plugin
+
+### 1. Create a New Crate
+
+```bash
+cargo new lucent-plugin-myanalyzer --lib
+cd lucent-plugin-myanalyzer
+```
+
+### 2. Add Dependencies
+
+```toml
+[dependencies]
+lucent = "0.1"
+anyhow = "1.0"
+```
+
+### 3. Implement MetricProvider
+
+```rust
+use lucent::plugin::{MetricProvider, PluginMetadata, PluginCapability};
+use lucent::metrics::FileMetrics;
+use anyhow::Result;
+use std::path::Path;
+
+pub struct MyAnalyzer;
+
+impl MetricProvider for MyAnalyzer {
+    fn metadata(&self) -> PluginMetadata {
+        PluginMetadata {
+            name: "my-analyzer".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            author: "Your Name".to_string(),
+            description: "My custom analyzer".to_string(),
+            api_version: lucent::plugin::PLUGIN_API_VERSION.to_string(),
+            capabilities: vec![
+                PluginCapability::MetricProvider(vec![
+                    "Rust".to_string(),
+                    "Python".to_string(),
+                ])
+            ],
+        }
+    }
+
+    fn supported_languages(&self) -> Vec<&str> {
+        vec!["Rust", "Python"]
+    }
+
+    fn analyze(&self, path: &Path, source: &str, language: &str)
+        -> Result<Option<FileMetrics>>
+    {
+        if !self.supports_language(language) {
+            return Ok(None);
+        }
+
+        // Your custom analysis logic here
+        let metrics = FileMetrics {
+            // ... populate metrics ...
+            ..Default::default()
+        };
+
+        Ok(Some(metrics))
+    }
+
+    fn priority(&self) -> u32 {
+        // Higher than default (50) to be preferred
+        70
+    }
+}
+```
+
+### 4. Register Your Plugin
+
+```rust
+use lucent::plugin::PluginRegistry;
+use std::sync::Arc;
+
+fn main() {
+    let mut registry = PluginRegistry::new();
+
+    let plugin = Arc::new(MyAnalyzer);
+    registry.register(plugin).unwrap();
+
+    // Use the plugin
+    let provider = registry.find_for_language("Rust").unwrap();
+    let metrics = provider.analyze(path, source, "Rust").unwrap();
+}
+```
+
+## Built-in Plugins
+
+Lucent ships with a built-in regex analyzer:
+
+```rust
+use lucent::plugin::RegexAnalyzer;
+
+let analyzer = RegexAnalyzer::new();
+let metadata = analyzer.metadata();
+// name: "lucent-builtin-regex"
+// Supports all 21+ languages
+// Priority: 10 (lower than external plugins)
+```
+
+This ensures Lucent works out-of-the-box while allowing plugins to override with better analysis.
+
+## Configuration
+
+### Enable Plugins
+
+Add to `.lucent.toml`:
+
+```toml
+[plugins]
+# List of enabled plugins
+enabled = ["tree-sitter", "my-custom-analyzer"]
+
+# Use plugins for analysis (vs built-in regex)
+use_for_analysis = true
+
+# Fallback to built-in if plugin fails
+fallback_on_error = true
+```
+
+### Per-Language Plugin Selection
+
+If multiple plugins support the same language, the one with **highest priority** is used:
+
+```rust
+impl MetricProvider for TreeSitterPlugin {
+    fn priority(&self) -> u32 { 100 }  // Very high priority
+}
+
+impl MetricProvider for RegexAnalyzer {
+    fn priority(&self) -> u32 { 10 }   // Low priority (fallback)
+}
+```
+
+## Example: Tree-sitter Plugin
+
+Here's a complete example of a tree-sitter plugin for Rust:
+
+```rust
+use lucent::plugin::{MetricProvider, PluginMetadata, PluginCapability};
+use lucent::metrics::FileMetrics;
+use anyhow::{Result, Context};
+use std::path::Path;
+use tree_sitter::{Parser, Language};
+
+extern "C" {
+    fn tree_sitter_rust() -> Language;
+}
+
+pub struct TreeSitterRustPlugin {
+    parser: Parser,
+}
+
+impl TreeSitterRustPlugin {
+    pub fn new() -> Result<Self> {
+        let language = unsafe { tree_sitter_rust() };
+        let mut parser = Parser::new();
+        parser.set_language(language)
+            .context("Failed to load Rust grammar")?;
+
+        Ok(Self { parser })
+    }
+
+    fn calculate_complexity(&self, tree: &tree_sitter::Tree) -> usize {
+        let mut complexity = 1; // Start at 1
+
+        let query_str = r#"
+            (if_expression) @decision
+            (match_expression) @decision
+            (while_expression) @decision
+            (loop_expression) @decision
+            (for_expression) @decision
+            (binary_expression
+                operator: ["&&" "||"] @decision)
+        "#;
+
+        let query = tree_sitter::Query::new(language, query_str).unwrap();
+        let mut cursor = tree_sitter::QueryCursor::new();
+
+        for _ in cursor.matches(&query, tree.root_node(), source.as_bytes()) {
+            complexity += 1;
+        }
+
+        complexity
+    }
+}
+
+impl MetricProvider for TreeSitterRustPlugin {
+    fn metadata(&self) -> PluginMetadata {
+        PluginMetadata {
+            name: "lucent-plugin-treesitter-rust".to_string(),
+            version: "0.1.0".to_string(),
+            author: "Lucent Team".to_string(),
+            description: "Tree-sitter based Rust analyzer".to_string(),
+            api_version: lucent::plugin::PLUGIN_API_VERSION.to_string(),
+            capabilities: vec![
+                PluginCapability::MetricProvider(vec!["Rust".to_string()])
+            ],
+        }
+    }
+
+    fn supported_languages(&self) -> Vec<&str> {
+        vec!["Rust"]
+    }
+
+    fn analyze(&self, path: &Path, source: &str, language: &str)
+        -> Result<Option<FileMetrics>>
+    {
+        if language != "Rust" {
+            return Ok(None);
+        }
+
+        let tree = self.parser.parse(source, None)
+            .context("Failed to parse Rust source")?;
+
+        let complexity = self.calculate_complexity(&tree);
+
+        let metrics = FileMetrics {
+            cyclomatic_complexity: complexity,
+            // ... populate other metrics from AST ...
+            ..Default::default()
+        };
+
+        Ok(Some(metrics))
+    }
+
+    fn priority(&self) -> u32 {
+        100 // High priority - prefer tree-sitter over regex
+    }
+}
+```
+
+### Using the Tree-sitter Plugin
+
+```rust
+use lucent::plugin::PluginRegistry;
+use std::sync::Arc;
+
+let mut registry = PluginRegistry::new();
+
+// Register tree-sitter plugin
+let ts_plugin = Arc::new(TreeSitterRustPlugin::new()?);
+registry.register(ts_plugin)?;
+
+// Register fallback regex plugin
+let regex_plugin = Arc::new(lucent::plugin::RegexAnalyzer::new());
+registry.register(regex_plugin)?;
+
+// Find best plugin for Rust
+let provider = registry.find_for_language("Rust").unwrap();
+// Returns tree-sitter plugin (priority 100 > 10)
+```
+
+## Testing Plugins
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_plugin_metadata() {
+        let plugin = MyAnalyzer;
+        let meta = plugin.metadata();
+
+        assert_eq!(meta.name, "my-analyzer");
+        assert_eq!(meta.api_version, lucent::plugin::PLUGIN_API_VERSION);
+    }
+
+    #[test]
+    fn test_supported_languages() {
+        let plugin = MyAnalyzer;
+
+        assert!(plugin.supports_language("Rust"));
+        assert!(plugin.supports_language("Python"));
+        assert!(!plugin.supports_language("JavaScript"));
+    }
+
+    #[test]
+    fn test_analysis() {
+        let plugin = MyAnalyzer;
+        let source = "fn main() {}";
+        let path = Path::new("test.rs");
+
+        let result = plugin.analyze(path, source, "Rust");
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
+    }
+}
+```
+
+## Publishing Plugins
+
+### 1. Package Structure
+
+```
+lucent-plugin-myanalyzer/
+├── Cargo.toml
+├── README.md
+├── src/
+│   └── lib.rs
+└── tests/
+    └── integration_test.rs
+```
+
+### 2. Cargo.toml
+
+```toml
+[package]
+name = "lucent-plugin-myanalyzer"
+version = "0.1.0"
+edition = "2021"
+description = "My custom analyzer for Lucent"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yourusername/lucent-plugin-myanalyzer"
+keywords = ["lucent", "plugin", "metrics", "analysis"]
+categories = ["development-tools"]
+
+[dependencies]
+lucent = "0.1"
+anyhow = "1.0"
+
+[lib]
+crate-type = ["lib", "cdylib"]  # For dynamic loading
+```
+
+### 3. Publish to crates.io
+
+```bash
+cargo publish
+```
+
+### 4. Usage by Others
+
+```toml
+[dependencies]
+lucent = "0.1"
+lucent-plugin-myanalyzer = "0.1"
+```
+
+```rust
+use lucent::plugin::PluginRegistry;
+use lucent_plugin_myanalyzer::MyAnalyzer;
+use std::sync::Arc;
+
+let mut registry = PluginRegistry::new();
+registry.register(Arc::new(MyAnalyzer)).unwrap();
+```
+
+## Best Practices
+
+1. **API Version Compatibility** - Always use `lucent::plugin::PLUGIN_API_VERSION`
+2. **Error Handling** - Return `Ok(None)` for unsupported languages, `Err` for failures
+3. **Priority** - Use higher priority (>50) for better analyzers, lower (<50) for fallbacks
+4. **Thread Safety** - Implement `Send + Sync` (required by trait)
+5. **Performance** - Cache parsers/grammars in struct, don't recreate per-file
+6. **Testing** - Test with various code samples and edge cases
+7. **Documentation** - Document supported languages and limitations
+
+## Troubleshooting
+
+**Q: My plugin isn't being used**
+A: Check priority - higher priority plugins are preferred
+
+**Q: Plugin fails to load**
+A: Verify API version matches: `lucent::plugin::PLUGIN_API_VERSION`
+
+**Q: Thread safety errors**
+A: Ensure your plugin implements `Send + Sync`
+
+**Q: Performance issues**
+A: Cache expensive initialization (parsers, grammars) in plugin struct
+
+## Roadmap
+
+Future plugin capabilities:
+
+- Dynamic plugin loading from shared libraries (.so, .dylib, .dll)
+- Plugin marketplace/registry
+- Hot-reloading during development
+- Plugin configuration via `.lucent.toml`
+- Plugin dependency management
+- Sandboxed plugin execution
+
+## Resources
+
+- [Lucent Documentation](../README.md)
+- [Plugin API Reference](../src/plugin/api.rs)
+- [Example: Built-in Regex Plugin](../src/plugin/builtin.rs)
+- [Tree-sitter Documentation](https://tree-sitter.github.io/tree-sitter/)
+
+## Questions?
+
+Open an issue on [GitHub](https://github.com/anthropics/lucent/issues) with the `plugin` label.

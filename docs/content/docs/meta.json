@@ -1,0 +1,23 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "---Getting Started---",
+    "installation",
+    "quick-start",
+    "---Core Concepts---",
+    "metrics",
+    "thresholds",
+    "snapshots",
+    "maintainability-index",
+    "---Features---",
+    "html-reports",
+    "plugin-guide",
+    "---Examples---",
+    "config-file-guide",
+    "ci-quality-gates",
+    "---Reference---",
+    "languages",
+    "roadmap"
+  ]
+}

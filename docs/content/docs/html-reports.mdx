@@ -1,0 +1,666 @@
+---
+title: HTML Reports Guide
+description: Generate interactive HTML reports with charts and visualizations
+---
+
+# HTML Reports Guide
+
+## Interactive Code Analysis Reports
+
+Lucent generates beautiful, interactive HTML reports with embedded visualizations, dark mode support, and export capabilities. These reports are perfect for sharing with teams, archiving analysis results, or viewing detailed metrics in a browser.
+
+---
+
+## 🚀 Quick Start
+
+### Generate an HTML Report
+
+```bash
+# Analyze current directory and generate HTML
+lucent . --format html > report.html
+
+# Analyze specific directory
+lucent src/ --format html > src-analysis.html
+
+# Then open in browser
+open report.html  # macOS
+xdg-open report.html  # Linux
+start report.html  # Windows
+```
+
+---
+
+## ✨ Features
+
+### 1. **Self-Contained Single File**
+- ✅ No external files required (except Chart.js from CDN)
+- ✅ Embedded CSS styling
+- ✅ Embedded JavaScript for interactivity
+- ✅ Easy to share via email or file transfer
+- ✅ Works offline (once Chart.js is cached)
+
+### 2. **Interactive Visualizations**
+- 📊 **Bar Charts** - Complexity and nesting depth by language
+- 🥧 **Pie Charts** - Code composition (code/comments/blanks)
+- 📈 **Progress Bars** - Maintainability Index with color-coded grades
+- 🎨 **Chart.js Integration** - Professional, animated charts
+
+### 3. **Dark/Light Mode**
+- 🌙 Toggle between dark and light themes
+- 💾 Preference saved to browser localStorage
+- 🎨 Beautiful color schemes for both modes
+- ♿ Accessible color contrast ratios
+
+### 4. **Export Capabilities**
+- 🖨️ **Print/PDF** - Print-optimized layout
+- 📊 **CSV Export** - Extract table data as CSV
+- 📋 **Copy** - Easy copy-paste of metrics
+
+### 5. **Responsive Design**
+- 📱 Mobile-friendly (phones, tablets)
+- 💻 Desktop-optimized (large screens)
+- 📐 Adaptive grid layouts
+- 🔄 Responsive charts
+
+---
+
+## 📊 Report Sections
+
+### 1. Summary Dashboard
+
+```
+┌─────────────────────────────────────────┐
+│ Total Files | LOC | Avg Complexity | MI │
+│     42      | 5.4K|      8.2       | 76 │
+└─────────────────────────────────────────┘
+```
+
+**What it shows:**
+- Total files analyzed
+- Lines of code (code only)
+- Average cyclomatic complexity
+- Code smells count
+- **Maintainability Index** with A-F grade
+
+**Color coding:**
+- 🟢 Green: Good metrics (< 5 complexity, MI ≥ 65)
+- 🟡 Yellow: Warning (5-20 complexity, MI 50-64)
+- 🔴 Red: Critical (> 20 complexity, MI < 50)
+
+---
+
+### 2. Visual Analytics
+
+#### Complexity Chart (Bar Chart)
+Shows cyclomatic complexity and nesting depth per language.
+
+**Insights:**
+- Compare complexity across languages
+- Identify hotspots (languages with high complexity)
+- Visualize code structure (nesting depth)
+
+#### Code Composition Chart (Doughnut Chart)
+Shows distribution of:
+- Code lines (purple)
+- Comment lines (green)
+- Blank lines (gray)
+
+**Insights:**
+- Code density visualization
+- Documentation coverage
+- Code-to-comment ratio
+
+---
+
+### 3. Languages Breakdown Table
+
+Interactive table with sortable columns:
+
+| Language | Files | Lines | Code | Complexity | Nesting | MI (Grade) |
+|----------|-------|-------|------|------------|---------|------------|
+| 🦀 Rust  | 25    | 3,421 | 2,105| 8.2        | 3.5     | 76 (B)     |
+| 🐍 Python| 12    | 1,892 | 1,234| 6.5        | 2.8     | 82 (B)     |
+
+**Features:**
+- Sorted by total lines (descending)
+- Language emojis for visual identification
+- Color-coded MI grades
+- Hoverable rows
+
+---
+
+### 4. Code Smells
+
+```
+┌────────────────────────────────────┐
+│ Long Functions        : 8          │
+│ Long Parameter Lists  : 3          │
+│ Deep Nesting          : 2          │
+│ Magic Numbers         : 15         │
+│ ───────────────────────────────── │
+│ Total                 : 28         │
+└────────────────────────────────────┘
+```
+
+**Badge colors:**
+- 🟢 Green: 0 smells
+- 🟡 Yellow: 1-20 smells
+- 🔴 Red: > 20 smells
+
+---
+
+### 5. Insights & Recommendations
+
+Smart insights based on your metrics:
+
+- ✅ **Low complexity** - Simple codebase
+- ⚠️ **High complexity** - Consider refactoring
+- ❌ **Very high complexity** - Urgent refactoring needed
+- ✅ **Shallow nesting** - Flat structure
+- ⚠️ **Deep nesting** - Reduce complexity
+- ✅ **Good documentation**
+- ⚠️ **Improve documentation**
+- ✨ **No code smells** - Clean code
+
+---
+
+## 🎨 Customization
+
+### Color Schemes
+
+**Light Mode (Default):**
+- Primary: Purple (#9333ea)
+- Success: Green (#10b981)
+- Warning: Orange (#f59e0b)
+- Danger: Red (#ef4444)
+- Background: White (#ffffff)
+
+**Dark Mode:**
+- Primary: Light Purple (#a855f7)
+- Success: Light Green (#34d399)
+- Warning: Light Orange (#fbbf24)
+- Danger: Light Red (#f87171)
+- Background: Dark Gray (#111827)
+
+### Maintainability Grades
+
+| Grade | Range    | Color  | Meaning               |
+|-------|----------|--------|-----------------------|
+| **A** | 85-100   | 🟢 Green | Highly maintainable  |
+| **B** | 65-84    | 🟢 Green | Moderately maintainable |
+| **C** | 50-64    | 🟡 Yellow | Acceptable          |
+| **D** | 25-49    | 🔴 Red   | Difficult to maintain |
+| **F** | 0-24     | 🔴 Red   | Very difficult        |
+
+---
+
+## 💡 Use Cases
+
+### 1. **Team Reviews**
+
+```bash
+# Generate report for sprint retrospective
+lucent . --format html > sprint-42-review.html
+
+# Email to team or attach to Confluence
+# Report is self-contained - no dependencies needed!
+```
+
+**Benefits:**
+- Visual representation of code quality
+- Easy to share with non-technical stakeholders
+- Interactive exploration by team members
+
+---
+
+### 2. **Client Deliverables**
+
+```bash
+# Generate professional report for client
+lucent client-project/ --format html > project-quality-report.html
+```
+
+**Benefits:**
+- Professional appearance
+- Demonstrates code quality
+- Transparent metrics
+- Export to PDF for documentation
+
+---
+
+### 3. **Historical Archive**
+
+```bash
+# Archive analysis at each release
+lucent . --format html > archives/v1.5.0-$(date +%Y%m%d).html
+```
+
+**Benefits:**
+- Track quality evolution over time
+- Compare releases
+- Identify trends
+- 90-day retention in GitHub Actions
+
+---
+
+### 4. **Code Review Enhancement**
+
+```bash
+# Analyze PR changes
+git diff --name-only main...feature | xargs lucent --format html > pr-analysis.html
+```
+
+**Benefits:**
+- Visual complexity indicators
+- Identify risky changes
+- Support code review decisions
+
+---
+
+## 🔧 Advanced Features
+
+### Print-Optimized Layout
+
+The HTML report includes print-specific CSS:
+
+```css
+@media print {
+    .toolbar { display: none; }
+    .expandable-content { max-height: none !important; }
+    .chart-container { page-break-inside: avoid; }
+}
+```
+
+**To print:**
+1. Click "🖨️ Print/PDF" button
+2. Use browser's print dialog
+3. Choose "Save as PDF" or print to paper
+
+**Print features:**
+- Hides toolbar buttons
+- Expands all sections
+- Prevents chart page breaks
+- Optimized margins
+
+---
+
+### CSV Export from Browser
+
+Click "📊 Export CSV" to download metrics as CSV:
+
+```csv
+"Language","Files","Lines","Code","Complexity","Nesting","MI (Grade)"
+"🦀 Rust","25","3421","2105","8.2","3.5","76 (B)"
+"🐍 Python","12","1892","1234","6.5","2.8","82 (B)"
+```
+
+**Uses:**
+- Import to Excel/Google Sheets
+- Further data analysis
+- Integration with BI tools
+
+---
+
+### Dark Mode Persistence
+
+```javascript
+// Dark mode preference saved to localStorage
+function toggleDarkMode() {
+    const html = document.documentElement;
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);  // Persists!
+}
+```
+
+**Behavior:**
+- Preference saved across browser sessions
+- Per-domain storage
+- Instant theme switching
+
+---
+
+## 🌐 Browser Compatibility
+
+### Fully Supported
+
+- ✅ Chrome 90+ (Desktop & Mobile)
+- ✅ Firefox 88+ (Desktop & Mobile)
+- ✅ Safari 14+ (macOS & iOS)
+- ✅ Edge 90+ (Windows & macOS)
+
+### Partially Supported
+
+- ⚠️ Internet Explorer 11 (no CSS variables, no Chart.js)
+- ⚠️ Older browsers (degrades gracefully)
+
+### Required JavaScript APIs
+
+- `localStorage` - For dark mode persistence
+- `addEventListener` - For interactivity
+- Chart.js 4.4.0 - For visualizations
+- ES6 features - Arrow functions, template literals
+
+---
+
+## 📁 File Structure
+
+The generated HTML report is structured as:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💎 Lucent Code Analysis Report</title>
+
+    <!-- Embedded CSS (~5KB) -->
+    <style>
+      :root { --primary: #9333ea; ... }
+      /* All styles inline */
+    </style>
+  </head>
+
+  <body>
+    <!-- Report content (~10KB) -->
+    <div class="container">
+      <header>...</header>
+      <section id="summary">...</section>
+      <section id="charts">...</section>
+      <section id="languages">...</section>
+      <section id="smells">...</section>
+      <section id="insights">...</section>
+      <footer>...</footer>
+    </div>
+
+    <!-- Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Embedded JavaScript (~5KB) -->
+    <script>
+      // All interactivity inline
+    </script>
+  </body>
+</html>
+```
+
+**Total size:** ~20KB (without Chart.js)
+
+---
+
+## 🔐 Security Considerations
+
+### Content Security Policy (CSP)
+
+If hosting on a web server with strict CSP:
+
+```html
+<!-- Add CSP meta tag -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self';
+               script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+               style-src 'self' 'unsafe-inline';">
+```
+
+### No External Data Transmission
+
+- ✅ No analytics or tracking
+- ✅ No external API calls (except Chart.js CDN)
+- ✅ No form submissions
+- ✅ All data stays local
+
+### localStorage Security
+
+- Data stored locally in browser
+- Not transmitted over network
+- Domain-scoped (isolated)
+- Contains only theme preference
+
+---
+
+## 🎯 Best Practices
+
+### 1. **Regular Generation**
+
+```bash
+# Add to CI/CD pipeline
+.github/workflows/metrics.yml:
+  - name: Generate HTML Report
+    run: |
+      lucent . --format html > report.html
+  - name: Upload Artifact
+    uses: actions/upload-artifact@v3
+    with:
+      name: quality-report
+      path: report.html
+```
+
+### 2. **Archive by Version**
+
+```bash
+# Include version in filename
+lucent . --format html > reports/v$(git describe --tags)-report.html
+```
+
+### 3. **Share Securely**
+
+```bash
+# Host on internal server
+scp report.html internal-server:/var/www/reports/
+
+# Or use GitHub Pages for public projects
+mv report.html docs/index.html
+git commit -m "Update quality report"
+git push
+```
+
+### 4. **Combine with Other Formats**
+
+```bash
+# Generate all formats
+lucent . --format html > report.html
+lucent . --format json > metrics.json
+lucent . --format csv > metrics.csv
+
+# Use JSON for CI checks, HTML for humans
+```
+
+---
+
+## 🆚 Comparison with Other Formats
+
+| Feature                | Terminal | JSON | Markdown | CSV | **HTML** |
+|------------------------|----------|------|----------|-----|----------|
+| **Colors**             | ✅       | ❌   | ❌       | ❌  | ✅       |
+| **Interactive Charts** | ❌       | ❌   | ❌       | ❌  | ✅       |
+| **Machine Readable**   | ❌       | ✅   | ⚠️       | ✅  | ⚠️       |
+| **Human Readable**     | ✅       | ❌   | ✅       | ⚠️  | ✅       |
+| **Shareable**          | ❌       | ✅   | ✅       | ✅  | ✅       |
+| **CI/CD Integration**  | ✅       | ✅   | ✅       | ✅  | ⚠️       |
+| **Visual Appeal**      | ⚠️       | ❌   | ⚠️       | ❌  | ✅       |
+| **Export Options**     | ❌       | ❌   | ❌       | ❌  | ✅       |
+| **Dark Mode**          | ✅       | ❌   | ❌       | ❌  | ✅       |
+| **Self-Contained**     | ✅       | ✅   | ✅       | ✅  | ⚠️ (CDN) |
+
+**Recommendation:**
+- **Terminal** - Quick local checks
+- **JSON** - CI/CD automation, data processing
+- **Markdown** - GitHub READMEs, documentation
+- **CSV** - Data analysis, Excel integration
+- **HTML** - Team reviews, client deliverables, archiving
+
+---
+
+## 🐛 Troubleshooting
+
+### Charts Not Rendering
+
+**Problem:** Charts show as empty boxes
+
+**Solutions:**
+1. Ensure internet connection (Chart.js CDN)
+2. Check browser console for errors
+3. Try different browser
+4. Disable ad blockers (may block CDN)
+
+```html
+<!-- If CDN fails, host Chart.js locally -->
+<script src="/path/to/chart.js"></script>
+```
+
+---
+
+### Dark Mode Not Persisting
+
+**Problem:** Theme resets on page reload
+
+**Solution:**
+- Check if browser allows localStorage
+- Try different domain/protocol
+- Clear browser cache and cookies
+
+---
+
+### Print Layout Issues
+
+**Problem:** Charts cut across pages
+
+**Solutions:**
+1. Use "Print/PDF" button (optimized)
+2. Adjust print scale in browser settings
+3. Try landscape orientation
+4. Use "Save as PDF" instead of physical print
+
+---
+
+### Large File Size
+
+**Problem:** HTML file is too large for email
+
+**Solutions:**
+1. Analyze subset of files
+2. Compress with gzip before sharing
+3. Host on web server instead
+4. Use JSON format for data transfer
+
+```bash
+# Gzip compression
+gzip report.html
+# Reduces ~20KB to ~5KB
+```
+
+---
+
+## 📚 Examples
+
+### Example 1: Clean Codebase
+
+```html
+📊 Summary Dashboard
+Total Files: 42
+Lines of Code: 5,432
+Avg Complexity: 4.2 ✅
+Code Smells: 2 ✅
+
+📈 Maintainability Index
+██████████████████ 88/100 (Grade: A)
+
+💡 Insights
+✅ Low complexity - Simple codebase
+✅ Shallow nesting - Flat structure
+✅ Good documentation
+✨ Very few code smells
+```
+
+---
+
+### Example 2: Needs Refactoring
+
+```html
+📊 Summary Dashboard
+Total Files: 105
+Lines of Code: 23,451
+Avg Complexity: 18.7 ⚠️
+Code Smells: 47 ⚠️
+
+📈 Maintainability Index
+████████░░░░░░░░░░ 52/100 (Grade: C)
+
+💡 Insights
+⚠️ High complexity - Consider refactoring
+⚠️ Deep nesting - Reduce complexity
+⚠️ Improve documentation
+⚠️ Many code smells - Review needed
+```
+
+---
+
+## 🚀 Future Enhancements
+
+Planned features (Phase 3+):
+
+- [ ] **Drill-down capability** - Click file to see details
+- [ ] **Trend charts** - Compare with historical data
+- [ ] **Filtering** - Show/hide languages
+- [ ] **Search** - Find specific files
+- [ ] **Annotations** - Add notes to report
+- [ ] **Themes** - Multiple color schemes
+- [ ] **Offline mode** - Bundled Chart.js
+- [ ] **Downloadable charts** - PNG/SVG export
+
+---
+
+## 🤝 Contributing
+
+Want to improve HTML reports?
+
+```bash
+# Edit the template
+src/output/mod.rs:display_html()
+
+# Test changes
+cargo run -- examples/ --format html > test.html
+open test.html
+
+# Submit PR
+git commit -m "feat: add X to HTML reports"
+```
+
+**Ideas welcome:**
+- Better visualizations
+- New chart types
+- UX improvements
+- Accessibility enhancements
+
+---
+
+## 📝 License
+
+HTML reports generated by Lucent are:
+- ✅ Free to use commercially
+- ✅ Free to modify
+- ✅ Free to distribute
+- ✅ No attribution required (but appreciated!)
+
+Chart.js library: MIT License
+
+---
+
+**Last Updated:** 2025-11-23
+**Version:** 0.1.0-alpha
+**Maintained By:** [@ibrahimcesar](https://github.com/ibrahimcesar)
+
+---
+
+## 💬 Feedback
+
+Have questions or suggestions?
+
+- 🐛 [Report issues](https://github.com/ibrahimcesar/lucent/issues)
+- 💬 [Discuss ideas](https://github.com/ibrahimcesar/lucent/discussions)
+- 📧 Email: email@ibrahimcesar.com
+
+---
+
+**Remember:** The best report is one that gets shared with your team! 📊✨

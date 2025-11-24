@@ -1,0 +1,369 @@
+# Configuration File Guide
+
+This guide explains how to use `.lucent.toml` configuration files to set default thresholds and quality gates.
+
+## Quick Start
+
+1. **Create `.lucent.toml` in your project root:**
+
+```toml
+[thresholds]
+max_cyclomatic_complexity = 15.0
+max_nesting_depth = 4.0
+min_maintainability_index = 65.0
+max_function_length = 50
+
+[quality_gates]
+fail_on_complexity = true
+fail_on_nesting = true
+warn_only = false
+```
+
+2. **Run Lucent (auto-discovers config):**
+
+```bash
+lucent
+```
+
+3. **Override with CLI flags:**
+
+```bash
+lucent --max-complexity 20.0  # CLI overrides config file
+```
+
+## Configuration Priority
+
+Lucent uses this priority order (highest to lowest):
+
+1. **CLI flags** (e.g., `--max-complexity 10.0`)
+2. **Custom config file** (`--config-file my-config.toml`)
+3. **Project `.lucent.toml`** (auto-discovered in current or parent directories)
+4. **User config** (`~/.config/lucent/config.toml`)
+5. **Default values** (no thresholds enforced)
+
+## Configuration File Locations
+
+### Project-Level (Recommended)
+
+```
+my-project/
+├── .lucent.toml          # Project-specific thresholds
+├── src/
+└── README.md
+```
+
+Lucent searches upward from the current directory to find `.lucent.toml`.
+
+### User-Level (Global)
+
+```
+~/.config/lucent/config.toml
+```
+
+Global defaults for all projects.
+
+### Custom Location
+
+```bash
+lucent --config-file path/to/custom-config.toml
+```
+
+## Complete Example
+
+See [lucent-thresholds.toml](lucent-thresholds.toml) for a fully documented example.
+
+```toml
+[project]
+name = "my-awesome-app"
+version = "1.0.0"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Quality Thresholds
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[thresholds]
+max_cyclomatic_complexity = 15.0   # Per-function average
+max_cognitive_complexity = 25.0
+max_nesting_depth = 4.0
+max_function_length = 50           # Lines per function
+min_comment_quality = 0.3          # 0.0-1.0 scale
+min_maintainability_index = 65.0   # 0-100 scale
+max_code_density = 0.8
+min_code_density = 0.5
+
+# Code smell limits
+max_long_functions = 10
+max_function_parameters = 5
+max_deep_nesting_instances = 5
+max_magic_numbers = 20
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Quality Gates (CI/CD)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[quality_gates]
+fail_on_complexity = true          # Exit 1 if exceeded
+fail_on_nesting = true
+fail_on_maintainability = true
+fail_on_code_smells = false
+warn_only = false                  # If true, only warn (exit 0)
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Language-Specific Overrides
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[languages.rust]
+max_cyclomatic_complexity = 12.0   # Stricter for Rust
+max_nesting_depth = 3.0
+max_function_length = 40
+
+[languages.python]
+max_cyclomatic_complexity = 18.0   # More lenient for Python
+max_nesting_depth = 5.0
+
+[languages.javascript]
+max_cyclomatic_complexity = 20.0
+max_nesting_depth = 5.0
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Ignore Patterns
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ignore]
+patterns = [
+    "target/",
+    "node_modules/",
+    "dist/",
+    "*.min.js",
+]
+use_lucentignore = true
+use_gitignore = true
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Output Configuration
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[output]
+default_format = "pretty"
+show_per_file = false
+colorize = true
+charts_in_html = true
+```
+
+## Per-Language Thresholds
+
+Lucent supports **per-language threshold overrides**, allowing you to set different quality standards for different programming languages. This is useful when:
+
+- Some languages are naturally more complex (e.g., JavaScript callbacks vs Rust)
+- You want stricter standards for critical code (e.g., backend Rust code)
+- Legacy code in one language needs more lenient thresholds during migration
+
+### How It Works
+
+1. **Global thresholds** apply to all languages by default
+2. **Per-language overrides** take precedence for specific languages
+3. **Violations are reported per-language**, showing which language violated which threshold
+
+### Example Configuration
+
+```toml
+[thresholds]
+# Global defaults for all languages
+max_cyclomatic_complexity = 15.0
+max_nesting_depth = 4.0
+min_maintainability_index = 65.0
+
+[languages.rust]
+# Stricter standards for Rust (production code)
+max_cyclomatic_complexity = 10.0
+max_nesting_depth = 3.0
+min_maintainability_index = 75.0
+
+[languages.javascript]
+# More lenient for JavaScript (due to callbacks, promises)
+max_cyclomatic_complexity = 20.0
+max_nesting_depth = 5.0
+
+[languages.python]
+# Python-specific thresholds
+max_cyclomatic_complexity = 12.0
+max_function_length = 40
+```
+
+### Example Output
+
+When thresholds are violated, Lucent shows which language failed:
+
+```
+✗ Rust - Average Complexity FAILED (expected <= 10.0, got 12.5)
+✗ JavaScript - Average Nesting Depth FAILED (expected <= 5.0, got 6.2)
+⚠ Python - Average Function Length WARNING (expected <= 40 lines, got 45 lines)
+```
+
+### Use Cases
+
+**1. Microservices Architecture**
+```toml
+[languages.rust]
+max_cyclomatic_complexity = 8.0  # Core services: very strict
+
+[languages.python]
+max_cyclomatic_complexity = 15.0  # Data scripts: moderate
+
+[languages.javascript]
+max_cyclomatic_complexity = 20.0  # Frontend: lenient
+```
+
+**2. Legacy Code Migration**
+```toml
+[thresholds]
+max_cyclomatic_complexity = 12.0  # New code standard
+
+[languages.java]
+max_cyclomatic_complexity = 25.0  # Legacy Java: temporarily lenient
+```
+
+**3. Progressive Tightening**
+Start lenient, then gradually tighten per-language thresholds over time as you refactor.
+
+## Usage Examples
+
+### 1. Team Standards
+
+Commit `.lucent.toml` to your repository to enforce team-wide quality standards:
+
+```bash
+# Everyone gets the same thresholds
+git add .lucent.toml
+git commit -m "Add code quality thresholds"
+```
+
+### 2. CI/CD Integration
+
+GitHub Actions example:
+
+```yaml
+- name: Code Quality Gate
+  run: lucent src/  # Uses .lucent.toml automatically
+```
+
+### 3. Progressive Improvement
+
+Start lenient and tighten over time:
+
+**Week 1:**
+```toml
+[thresholds]
+max_cyclomatic_complexity = 30.0
+```
+
+**Week 4:**
+```toml
+[thresholds]
+max_cyclomatic_complexity = 25.0
+```
+
+**Week 8:**
+```toml
+[thresholds]
+max_cyclomatic_complexity = 20.0
+```
+
+### 4. Per-Developer Overrides
+
+Developers can still use CLI flags for local testing:
+
+```bash
+# Test stricter thresholds locally
+lucent --max-complexity 10.0
+
+# Temporarily disable thresholds
+lucent  # Just run without .lucent.toml or move it
+```
+
+## Threshold Recommendations
+
+### Strict (New Projects)
+
+```toml
+[thresholds]
+max_cyclomatic_complexity = 10.0
+max_nesting_depth = 3.0
+max_function_length = 30
+min_maintainability_index = 75.0
+```
+
+### Moderate (Balanced)
+
+```toml
+[thresholds]
+max_cyclomatic_complexity = 15.0
+max_nesting_depth = 4.0
+max_function_length = 50
+min_maintainability_index = 65.0
+```
+
+### Lenient (Legacy Code)
+
+```toml
+[thresholds]
+max_cyclomatic_complexity = 25.0
+max_nesting_depth = 6.0
+max_function_length = 75
+min_maintainability_index = 50.0
+```
+
+## Threshold Mapping
+
+Config file thresholds map to CLI flags:
+
+| Config File | CLI Flag |
+|-------------|----------|
+| `max_cyclomatic_complexity` | `--max-complexity` |
+| `max_nesting_depth` | `--max-nesting` |
+| `min_maintainability_index` | `--min-maintainability` |
+| `max_function_length` | `--max-function-length` |
+| `max_long_functions` + others | `--max-code-smells` |
+| N/A | `--max-todos` |
+| `!warn_only` | `--fail-on-warning` |
+
+## Tips
+
+1. **Start with defaults**: Run `lucent` to see current metrics, then set thresholds slightly above current values
+
+2. **Version control**: Commit `.lucent.toml` so everyone on the team has the same standards
+
+3. **Document decisions**: Add comments explaining why specific thresholds were chosen
+
+4. **Regular reviews**: Revisit thresholds quarterly as code quality improves
+
+5. **Language-specific**: Use `[languages.*]` sections for different standards per language
+
+6. **CI warnings**: Use `warn_only = true` initially to see violations without failing builds
+
+7. **Gradual enforcement**: Enable one quality gate at a time:
+   ```toml
+   [quality_gates]
+   fail_on_complexity = true    # Start here
+   fail_on_nesting = false      # Enable next quarter
+   ```
+
+## Troubleshooting
+
+**Q: Config file not being found**
+A: Ensure `.lucent.toml` is in the current directory or a parent directory. Use `--verbose` to see which config is loaded.
+
+**Q: CLI flags not overriding**
+A: CLI flags should always override. If not, please file a bug report.
+
+**Q: Different results between developers**
+A: Ensure everyone has the same `.lucent.toml` file and is using the same Lucent version.
+
+**Q: How to disable thresholds temporarily**
+A: Either move `.lucent.toml` or use a custom config with all thresholds removed.
+
+## Related Documentation
+
+- [ci-quality-gates.md](ci-quality-gates.md) - CI/CD integration examples
+- [lucent-thresholds.toml](lucent-thresholds.toml) - Complete config template
+- [ROADMAP.md](../ROADMAP.md) - Future threshold features

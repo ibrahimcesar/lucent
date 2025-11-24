@@ -1,0 +1,43 @@
+# Lucent Configuration for this project
+# Demonstrates threshold loading from config file
+
+[project]
+name = "lucent"
+version = "0.1.0-alpha"
+
+[thresholds]
+# These are intentionally lenient for this alpha project
+max_cyclomatic_complexity = 100.0
+max_cognitive_complexity = 150.0
+max_nesting_depth = 10.0
+max_function_length = 100
+min_maintainability_index = 20.0
+max_code_density = 0.9
+min_code_density = 0.3
+max_long_functions = 50
+max_function_parameters = 10
+max_deep_nesting_instances = 100
+max_magic_numbers = 200
+
+[quality_gates]
+fail_on_complexity = false
+fail_on_nesting = false
+fail_on_maintainability = false
+fail_on_code_smells = false
+warn_only = true
+
+[ignore]
+patterns = [
+    "target/",
+    "examples/",
+    "tests/",
+    ".lucent/",
+]
+use_lucentignore = true
+use_gitignore = true
+
+[output]
+default_format = "pretty"
+show_per_file = false
+colorize = true
+charts_in_html = true

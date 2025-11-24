@@ -1,0 +1,303 @@
+---
+title: Thresholds & Quality Gates
+description: Configure quality gates and thresholds for code quality enforcement
+---
+
+# Thresholds & Interpretation Guide
+
+## Overview
+
+This document explains all the thresholds and interpretation guidelines used in 💎 **Lucent**'s metrics analysis.
+
+---
+
+## 📊 Current Thresholds (v0.1.0-alpha)
+
+### Shannon Entropy
+
+**Purpose:** Measure code complexity and information density
+
+| Range | Level | Interpretation | Recommendation |
+|-------|-------|----------------|----------------|
+| **0.0 - 2.0** | Very Low | Extremely repetitive code | ⚠️ Check for copy-paste or generated code |
+| **2.0 - 3.5** | Low | Simple, straightforward code | ✅ Good for utilities and helpers |
+| **3.5 - 4.5** | **Moderate** | **Balanced complexity** | ✅ **Healthy range for most code** |
+| **4.5 - 5.5** | High | Dense, complex code | ⚠️ Consider refactoring for clarity |
+| **5.5+** | Very High | Very dense information | 🔴 Strong refactoring candidate |
+
+**Current implementation in code:**
+```rust
+// In src/output/mod.rs - display_insights()
+if avg_entropy > 4.5 {
+    println!("  {} High complexity: Entropy {:.2} (consider refactoring)",
+        "⚠️".yellow(), avg_entropy);
+} else if avg_entropy < 3.0 {
+    println!("  {} Low complexity: Entropy {:.2} (simple codebase)",
+        "✓".green(), avg_entropy);
+}
+```
+
+**Hardcoded values:**
+- `HIGH_THRESHOLD = 4.5`
+- `LOW_THRESHOLD = 3.0`
+
+**Future:** Configurable via `.lucent.toml`:
+```toml
+[thresholds]
+entropy_low = 3.5
+entropy_high = 4.5
+```
+
+---
+
+### Code Density
+
+**Formula:** `(Code Lines / Total Lines) × 100%`
+
+**Purpose:** Balance between code and documentation
+
+| Range | Level | Interpretation | Recommendation |
+|-------|-------|----------------|----------------|
+| **< 30%** | Very Low | Documentation-heavy | ⚠️ May be over-documented |
+| **30-50%** | Moderate | Well-documented | ✅ Good for API libraries |
+| **50-70%** | **Healthy** | **Good balance** | ✅ **Recommended range** |
+| **70-85%** | High | Production code | Consider adding docs |
+| **> 85%** | Very High | Minimal documentation | ⚠️ Review documentation needs |
+
+**Current implementation:**
+```rust
+// Always displayed, no threshold warnings yet
+let code_ratio = code_lines as f64 / total_lines as f64;
+println!("  {} Code density: {:.1}%", "📈".normal(), code_ratio * 100.0);
+```
+
+**Future thresholds:**
+```toml
+[thresholds]
+density_min = 50.0
+density_max = 70.0
+```
+
+---
+
+### Comment Ratio
+
+**Formula:** `(Comment Lines / Total Lines) × 100%`
+
+**Purpose:** Assess documentation coverage
+
+| Range | Level | Interpretation | Recommendation |
+|-------|-------|----------------|----------------|
+| **< 10%** | Low | Under-documented | ⚠️ Add more documentation |
+| **10-20%** | Moderate | Light documentation | Consider adding more |
+| **20-30%** | **Healthy** | **Well documented** | ✅ **Good range** |
+| **> 30%** | High | Heavily documented | ✅ Excellent for APIs |
+
+**Current implementation:**
+```rust
+// In src/output/mod.rs - display_insights()
+let comment_ratio = comment_lines as f64 / total_lines as f64;
+
+if comment_ratio < 0.1 {
+    println!("  {} Low documentation: Only {:.1}% comments",
+        "⚠️".yellow(), comment_ratio * 100.0);
+} else if comment_ratio > 0.3 {
+    println!("  {} Well documented: {:.1}% comments",
+        "✓".green(), comment_ratio * 100.0);
+}
+```
+
+**Hardcoded values:**
+- `LOW_THRESHOLD = 0.1` (10%)
+- `HIGH_THRESHOLD = 0.3` (30%)
+
+**Future:**
+```toml
+[thresholds]
+comments_min = 10.0
+comments_max = 30.0
+```
+
+---
+
+## 🎯 Why These Values?
+
+### Research & Industry Standards
+
+#### Shannon Entropy (Information Theory)
+- **Source:** Claude Shannon's Information Theory (1948)
+- **Application:** Higher entropy = more unpredictable/complex
+- **Context for code:**
+  - Natural language: ~3.5-4.5 bits
+  - Random text: ~7-8 bits
+  - Code sits in between: **3.5-5.5 is typical**
+
+#### Code Density
+- **Industry practice:**
+  - Production code: 60-80% code
+  - Well-documented libraries: 40-60% code
+  - Tutorial/educational: 30-50% code
+- **Our defaults (50-70%):** Balance for general-purpose code
+
+#### Comment Ratio
+- **Google Style Guide:** Recommends 20-30% for public APIs
+- **Linux Kernel:** Averages ~15-25%
+- **Our defaults (10-30%):** Flexible range for different project types
+
+---
+
+## 🔧 Customization (Future)
+
+### Per-Project Configuration
+
+Create `.lucent.toml` in your project root:
+
+```toml
+[thresholds]
+# Adjust for your team's standards
+entropy_low = 3.0       # Your "simple" threshold
+entropy_high = 5.0      # Your "complex" threshold
+
+density_min = 40.0      # Min acceptable code %
+density_max = 80.0      # Max acceptable code %
+
+comments_min = 15.0     # Min acceptable comments %
+comments_max = 35.0     # Max acceptable comments %
+```
+
+### Language-Specific Thresholds (Future)
+
+```toml
+[thresholds.rust]
+# Rust-specific thresholds
+comments_min = 20.0  # Expect more docs in Rust
+
+[thresholds.python]
+# Python-specific
+comments_min = 15.0  # Docstrings count as docs
+
+[thresholds.javascript]
+# JS-specific
+entropy_high = 5.0   # Allow higher complexity
+```
+
+---
+
+## 📈 Threshold Evolution
+
+### How to Establish Your Baselines
+
+1. **Run initial analysis:**
+   ```bash
+   lucent . --save-snapshot "baseline"
+   ```
+
+2. **Review your project's values:**
+   - What's your current average entropy?
+   - What's your current comment ratio?
+
+3. **Set realistic thresholds:**
+   ```toml
+   # If your project has avg entropy of 4.2:
+   entropy_high = 4.5  # Allow slight increase
+
+   # If your comments are at 12%:
+   comments_min = 10.0  # Don't go below current
+   ```
+
+4. **Track progress:**
+   ```bash
+   lucent --compare-with baseline
+   ```
+
+---
+
+## ⚠️ Warning Levels
+
+### Future Implementation
+
+```rust
+pub enum WarningLevel {
+    Info,     // FYI, no action needed
+    Warning,  // Consider reviewing
+    Error,    // Should be addressed
+    Critical, // Must be fixed
+}
+```
+
+### Threshold-Based Warnings
+
+| Metric | Info | Warning | Error | Critical |
+|--------|------|---------|-------|----------|
+| **Entropy** | 3.5-4.0 | 4.0-4.5 | 4.5-5.5 | > 5.5 |
+| **Density** | 50-70% | 30-50% or 70-85% | 20-30% or 85-90% | <20% or >90% |
+| **Comments** | 20-30% | 10-20% or 30-40% | 5-10% or 40-50% | <5% or >50% |
+
+---
+
+## 🎨 Visual Indicators
+
+### Current (v0.1.0)
+
+- ✅ Green checkmark: Good
+- ⚠️ Yellow warning: Review recommended
+- 🔴 Red X: Action needed (future)
+
+### Future Enhancements
+
+```
+Entropy: 4.2 ████████░░ 84% ⚠️  Approaching high complexity
+
+Density: 65% ████████░░ ✅  Healthy balance
+
+Comments: 8% ███░░░░░░░ ⚠️  Below recommended minimum
+```
+
+---
+
+## 🔬 Advanced: Understanding Entropy
+
+### What Gets Measured?
+
+Shannon entropy measures **character-level diversity:**
+
+```rust
+// Low entropy (2.8) - repetitive characters
+let x = 0;
+let y = 0;
+let z = 0;
+
+// High entropy (4.9) - diverse characters
+fn parse(data: &str) -> Result<HashMap<K, V>, Error> {
+    data.split(',').map(|s| s.parse()?).collect()
+}
+```
+
+### What Affects Entropy?
+
+**Increases** entropy:
+- Varied operators: `+, -, *, /, %, &, |, ^, <<, >>`
+- Mixed case: `XMLHttpRequest` vs `xmlhttprequest`
+- Symbols: `{}, [], (), <>, ::, ->, =>`
+- Numbers mixed with text: `let x2 = y3 * z4`
+
+**Decreases** entropy:
+- Long repeated identifiers
+- Consistent naming patterns
+- Large whitespace blocks
+- Generated boilerplate
+
+---
+
+## 📚 Further Reading
+
+- [Shannon Entropy](https://en.wikipedia.org/wiki/Entropy_(information_theory))
+- [Code Metrics Best Practices](https://martinfowler.com/bliki/CodeMetrics.html)
+- [Google Engineering Practices](https://google.github.io/eng-practices/)
+- [Lucent Metrics Guide](./METRICS.md)
+
+---
+
+**Last Updated:** 2025-11-23
+**Version:** 0.1.0-alpha
+**Status:** Current thresholds are hardcoded, configuration planned for v0.3.0
