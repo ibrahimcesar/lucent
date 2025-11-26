@@ -72,11 +72,21 @@ pub mod cache;
 /// Custom rules engine
 pub mod rules;
 
+/// Interactive TUI (Terminal User Interface) for exploring code metrics
+///
+/// TUI stands for Terminal User Interface - an interactive, text-based
+/// graphical interface that runs directly in your terminal.
+pub mod tui;
+
 // Re-exports for convenience
 pub use config::Config;
 pub use language::{Language, LANGUAGES};
-pub use metrics::{FileMetrics, ProjectMetrics, LanguageMetrics};
-pub use output::{display_metrics, OutputFormat};
+pub use metrics::{
+    FileMetrics, ProjectMetrics, LanguageMetrics,
+    AstAnalyzer, AstFileMetrics, CommonQueries, QueryMatch,
+    AstCache, CacheStats, LazyAstAnalyzer, ParallelAstAnalyzer,
+};
+pub use output::{display_metrics, display_metrics_with_violations, OutputFormat};
 pub use scanner::{Scanner, SourceFile};
 pub use snapshot::{Snapshot, SnapshotManager, SnapshotComparison};
 pub use threshold::{ThresholdConfig, ValidationResult, ThresholdViolation, Severity};

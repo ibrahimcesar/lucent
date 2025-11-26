@@ -1,0 +1,157 @@
+<!-- Plugin Configuration File -->
+<idea-plugin>
+    <id>com.lucent.plugin</id>
+    <name>Lucent Code Metrics</name>
+    <vendor email="email@ibrahimcesar.com" url="https://github.com/ibrahimcesar/lucent">Ibrahim Cesar</vendor>
+
+    <description><![CDATA[
+    <h2>Lucent - Crystal Clear Code Insights</h2>
+    <p>
+        Lucent provides real-time code quality metrics directly in your JetBrains IDE.
+        Get instant feedback on complexity, maintainability, and code health.
+    </p>
+
+    <h3>Features</h3>
+    <ul>
+        <li><b>Cyclomatic Complexity</b> - Measure code path complexity</li>
+        <li><b>Cognitive Complexity</b> - Understand how hard code is to read</li>
+        <li><b>Maintainability Index</b> - Track overall code health (A-F grades)</li>
+        <li><b>Nesting Depth</b> - Identify deeply nested code</li>
+        <li><b>Code Smells</b> - Detect common anti-patterns</li>
+        <li><b>Function Metrics</b> - Analyze function length and parameters</li>
+    </ul>
+
+    <h3>Supported Languages</h3>
+    <p>Rust, Python, JavaScript, TypeScript, Go, Java, and more.</p>
+
+    <h3>Requirements</h3>
+    <p>Requires the <code>lucent</code> CLI tool to be installed and available in PATH.</p>
+    <pre>cargo install lucent-code</pre>
+
+    <h3>Links</h3>
+    <ul>
+        <li><a href="https://github.com/ibrahimcesar/lucent">GitHub Repository</a></li>
+        <li><a href="https://github.com/ibrahimcesar/lucent/issues">Report Issues</a></li>
+    </ul>
+    ]]></description>
+
+    <change-notes><![CDATA[
+    <h3>0.1.0</h3>
+    <ul>
+        <li>Initial release</li>
+        <li>File-level metrics analysis</li>
+        <li>Metrics tool window</li>
+        <li>Gutter icons for complexity</li>
+        <li>Code inspections for quality thresholds</li>
+    </ul>
+    ]]></change-notes>
+
+    <!-- Minimum IDE version -->
+    <idea-version since-build="233" until-build="243.*"/>
+
+    <!-- Plugin Dependencies -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Application Service for Lucent CLI integration -->
+        <applicationService
+            serviceImplementation="com.lucent.plugin.services.LucentService"/>
+
+        <!-- Project Service for project-specific metrics -->
+        <projectService
+            serviceImplementation="com.lucent.plugin.services.LucentProjectService"/>
+
+        <!-- Settings/Preferences -->
+        <applicationConfigurable
+            parentId="tools"
+            instance="com.lucent.plugin.settings.LucentSettingsConfigurable"
+            id="com.lucent.plugin.settings.LucentSettingsConfigurable"
+            displayName="Lucent"/>
+
+        <applicationService
+            serviceImplementation="com.lucent.plugin.settings.LucentSettings"/>
+
+        <!-- Tool Window -->
+        <toolWindow
+            id="Lucent Metrics"
+            secondary="true"
+            icon="/icons/lucent.svg"
+            anchor="right"
+            factoryClass="com.lucent.plugin.toolwindow.LucentToolWindowFactory"/>
+
+        <!-- Code Inspections -->
+        <localInspection
+            language=""
+            groupPath="Lucent"
+            groupName="Code Metrics"
+            shortName="LucentComplexityInspection"
+            displayName="High cyclomatic complexity"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.lucent.plugin.inspections.ComplexityInspection"/>
+
+        <localInspection
+            language=""
+            groupPath="Lucent"
+            groupName="Code Metrics"
+            shortName="LucentMaintainabilityInspection"
+            displayName="Low maintainability index"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.lucent.plugin.inspections.MaintainabilityInspection"/>
+
+        <localInspection
+            language=""
+            groupPath="Lucent"
+            groupName="Code Metrics"
+            shortName="LucentNestingInspection"
+            displayName="Deep nesting detected"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.lucent.plugin.inspections.NestingInspection"/>
+
+        <!-- Line Marker Provider for gutter icons -->
+        <codeInsight.lineMarkerProvider
+            language=""
+            implementationClass="com.lucent.plugin.inspections.MetricsLineMarkerProvider"/>
+
+        <!-- Notification Group -->
+        <notificationGroup
+            id="Lucent Notifications"
+            displayType="BALLOON"/>
+    </extensions>
+
+    <actions>
+        <!-- Analyze Current File Action -->
+        <action
+            id="Lucent.AnalyzeFile"
+            class="com.lucent.plugin.actions.AnalyzeFileAction"
+            text="Analyze with Lucent"
+            description="Analyze current file with Lucent code metrics"
+            icon="/icons/lucent.svg">
+            <add-to-group group-id="AnalyzeMenu" anchor="first"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt L"/>
+        </action>
+
+        <!-- Analyze Project Action -->
+        <action
+            id="Lucent.AnalyzeProject"
+            class="com.lucent.plugin.actions.AnalyzeProjectAction"
+            text="Analyze Project with Lucent"
+            description="Analyze entire project with Lucent code metrics"
+            icon="/icons/lucent.svg">
+            <add-to-group group-id="AnalyzeMenu" anchor="after" relative-to-action="Lucent.AnalyzeFile"/>
+        </action>
+
+        <!-- Refresh Metrics Action -->
+        <action
+            id="Lucent.RefreshMetrics"
+            class="com.lucent.plugin.actions.RefreshMetricsAction"
+            text="Refresh Lucent Metrics"
+            description="Refresh code metrics for the current file"
+            icon="AllIcons.Actions.Refresh">
+        </action>
+    </actions>
+</idea-plugin>

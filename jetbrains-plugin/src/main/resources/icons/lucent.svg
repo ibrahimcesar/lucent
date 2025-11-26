@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Diamond shape for Lucent -->
+  <path d="M8 1 L15 8 L8 15 L1 8 Z" fill="#4FC3F7" stroke="#0288D1" stroke-width="0.5"/>
+  <!-- Inner highlight -->
+  <path d="M8 3 L12 8 L8 13 L4 8 Z" fill="#81D4FA" opacity="0.6"/>
+  <!-- Center sparkle -->
+  <circle cx="8" cy="8" r="1.5" fill="white" opacity="0.8"/>
+</svg>

@@ -1,0 +1,11 @@
+[package]
+name = "lucent-example-plugin"
+version = "0.1.0"
+edition = "2021"
+description = "Example dynamic plugin for Lucent"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+lucent = { path = "../../.." }

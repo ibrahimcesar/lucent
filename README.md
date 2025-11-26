@@ -86,6 +86,16 @@ Current version: `0.1.0-alpha`
   - Quality gate enforcement
   - Diff-mode for changed files only
   - Multi-platform CI/CD pipeline
+- ✅ **Git Hooks** (NEW!)
+  - `lucent init --hooks` to install pre-commit hooks
+  - Automatic quality checks on staged files
+  - Prevent commits that fail quality gates
+  - Template-based hook generation
+- ✅ **Quality Badges** (NEW!)
+  - `lucent badge` to generate README badges
+  - Shields.io URLs (zero infrastructure!)
+  - Markdown and SVG formats
+  - Show off your code quality
 - ✅ **Plugin System** (NEW!)
   - Extensible architecture for custom analyzers
   - Built-in regex plugin (default)
@@ -185,7 +195,12 @@ lucent .
 
 ## 🚀 Usage
 
+### Quick Start
+
 ```bash
+# Initialize project (install git hooks)
+lucent init
+
 # Analyze current directory
 lucent .
 
@@ -209,8 +224,55 @@ lucent --verbose --per-file
 
 # Get help
 lucent --help
+```
 
-# Quality gates for CI/CD (exit code 1 if thresholds violated)
+### Git Hooks
+
+Install pre-commit hooks to run Lucent automatically before each commit:
+
+```bash
+# Install git pre-commit hook
+lucent init --hooks
+
+# Create configuration file
+lucent init --config
+
+# Your commits will now be checked for quality issues!
+```
+
+The pre-commit hook will:
+- ✅ Analyze all staged source files
+- ✅ Run quality gates based on your `.lucent.toml` configuration
+- ✅ Block commits that fail quality checks (can bypass with `--no-verify`)
+
+### Quality Badges
+
+Generate badges to show off your code quality in README:
+
+```bash
+# Generate markdown badge (default)
+lucent badge
+
+# Output: ![Code Quality](https://img.shields.io/badge/code_quality-A-brightgreen)
+
+# Just the URL
+lucent badge --type url
+
+# Generate SVG file
+lucent badge --type svg --output badge.svg
+```
+
+Badge grades are based on Maintainability Index:
+- **A** (90-100): Excellent maintainability
+- **B** (80-89): Good maintainability
+- **C** (70-79): Moderate maintainability
+- **D** (60-69): Difficult to maintain
+- **F** (0-59): Extremely difficult to maintain
+
+### Quality Gates for CI/CD
+
+```bash
+# Quality gates (exit code 1 if thresholds violated)
 lucent --max-complexity 10.0 --min-maintainability 70.0
 
 # Combine multiple thresholds

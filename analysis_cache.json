@@ -1,33 +1,406 @@
 {
-  "src/lib.rs": {
-    "hash": 2892,
+  "examples/test_haskell.hs": {
+    "hash": 348,
     "mtime": {
-      "secs_since_epoch": 1763948029,
-      "nanos_since_epoch": 629444759
+      "secs_since_epoch": 1763926771,
+      "nanos_since_epoch": 477222619
     },
-    "size": 2892,
+    "size": 348,
     "metrics": {
-      "total_lines": 105,
-      "code_lines": 37,
-      "comment_lines": 51,
-      "blank_lines": 17,
-      "entropy": 4.965853632492404,
-      "cyclomatic_complexity": 23,
-      "cognitive_complexity": 42,
-      "max_nesting_depth": 3,
-      "function_count": 2,
-      "avg_function_length": 15.5,
+      "total_lines": 16,
+      "code_lines": 9,
+      "comment_lines": 4,
+      "blank_lines": 3,
+      "entropy": 4.717773195466792,
+      "cyclomatic_complexity": 2,
+      "cognitive_complexity": 7,
+      "max_nesting_depth": 0,
+      "function_count": 3,
+      "avg_function_length": 7.333333333333333,
       "todo_count": 0,
       "fixme_count": 0,
       "hack_count": 0,
-      "comment_quality_score": 0.32142857142857145,
-      "low_quality_comments": 18,
-      "high_quality_comments": 3,
+      "comment_quality_score": 0.5,
+      "low_quality_comments": 0,
+      "high_quality_comments": 0,
       "code_smells": [],
-      "maintainability_index": 41.99493947645367,
-      "halstead_volume": 2303.306978692686,
-      "halstead_difficulty": 22.093023255813954,
-      "halstead_effort": 50887.01464553608
+      "maintainability_index": 62.8798894511708,
+      "halstead_volume": 315.42269615752105,
+      "halstead_difficulty": 8.130434782608695,
+      "halstead_effort": 2564.5236600633234
+    }
+  },
+  "examples/comment_quality_test.rs": {
+    "hash": 1673,
+    "mtime": {
+      "secs_since_epoch": 1763926452,
+      "nanos_since_epoch": 914060730
+    },
+    "size": 1673,
+    "metrics": {
+      "total_lines": 59,
+      "code_lines": 28,
+      "comment_lines": 22,
+      "blank_lines": 9,
+      "entropy": 4.7554843272931615,
+      "cyclomatic_complexity": 11,
+      "cognitive_complexity": 37,
+      "max_nesting_depth": 3,
+      "function_count": 6,
+      "avg_function_length": 6.833333333333333,
+      "todo_count": 1,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "comment_quality_score": 0.4090909090909091,
+      "low_quality_comments": 9,
+      "high_quality_comments": 5,
+      "code_smells": [
+        {
+          "smell_type": "MagicNumber",
+          "line": 6,
+          "description": "Magic number '64' should be replaced with a named constant",
+          "severity": "Minor"
+        },
+        {
+          "smell_type": "MagicNumber",
+          "line": 6,
+          "description": "Magic number '64' should be replaced with a named constant",
+          "severity": "Minor"
+        },
+        {
+          "smell_type": "MagicNumber",
+          "line": 43,
+          "description": "Magic number '32' should be replaced with a named constant",
+          "severity": "Minor"
+        },
+        {
+          "smell_type": "MagicNumber",
+          "line": 43,
+          "description": "Magic number '32' should be replaced with a named constant",
+          "severity": "Minor"
+        },
+        {
+          "smell_type": "MagicNumber",
+          "line": 43,
+          "description": "Magic number '32' should be replaced with a named constant",
+          "severity": "Minor"
+        },
+        {
+          "smell_type": "MagicNumber",
+          "line": 52,
+          "description": "Magic number '5' should be replaced with a named constant",
+          "severity": "Minor"
+        },
+        {
+          "smell_type": "MagicNumber",
+          "line": 52,
+          "description": "Magic number '5' should be replaced with a named constant",
+          "severity": "Minor"
+        },
+        {
+          "smell_type": "MagicNumber",
+          "line": 54,
+          "description": "Magic number '32' should be replaced with a named constant",
+          "severity": "Minor"
+        }
+      ],
+      "maintainability_index": 46.85822851148766,
+      "halstead_volume": 1517.636645524449,
+      "halstead_difficulty": 18.08695652173913,
+      "halstead_effort": 27449.428023398727
+    }
+  },
+  "examples/test_elixir.ex": {
+    "hash": 419,
+    "mtime": {
+      "secs_since_epoch": 1763926765,
+      "nanos_since_epoch": 500295227
+    },
+    "size": 419,
+    "metrics": {
+      "total_lines": 20,
+      "code_lines": 13,
+      "comment_lines": 4,
+      "blank_lines": 3,
+      "entropy": 4.486343217030336,
+      "cyclomatic_complexity": 4,
+      "cognitive_complexity": 9,
+      "max_nesting_depth": 1,
+      "function_count": 4,
+      "avg_function_length": 3.75,
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "comment_quality_score": 0.25,
+      "low_quality_comments": 2,
+      "high_quality_comments": 0,
+      "code_smells": [],
+      "maintainability_index": 59.42869885119294,
+      "halstead_volume": 259.4606049037673,
+      "halstead_difficulty": 5.94,
+      "halstead_effort": 1541.195993128378
+    }
+  },
+  "examples/test.sh": {
+    "hash": 402,
+    "mtime": {
+      "secs_since_epoch": 1763926784,
+      "nanos_since_epoch": 132102824
+    },
+    "size": 402,
+    "metrics": {
+      "total_lines": 28,
+      "code_lines": 18,
+      "comment_lines": 6,
+      "blank_lines": 4,
+      "entropy": 4.595836802367881,
+      "cyclomatic_complexity": 3,
+      "cognitive_complexity": 6,
+      "max_nesting_depth": 1,
+      "function_count": 3,
+      "avg_function_length": 5.0,
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "comment_quality_score": 0.3333333333333333,
+      "low_quality_comments": 2,
+      "high_quality_comments": 0,
+      "code_smells": [
+        {
+          "smell_type": "MagicNumber",
+          "line": 27,
+          "description": "Magic number '20' should be replaced with a named constant",
+          "severity": "Minor"
+        }
+      ],
+      "maintainability_index": 56.10949398649644,
+      "halstead_volume": 301.26792647514816,
+      "halstead_difficulty": 10.08695652173913,
+      "halstead_effort": 3038.876475749321
+    }
+  },
+  "examples/test.clj": {
+    "hash": 369,
+    "mtime": {
+      "secs_since_epoch": 1763926805,
+      "nanos_since_epoch": 653432380
+    },
+    "size": 369,
+    "metrics": {
+      "total_lines": 21,
+      "code_lines": 12,
+      "comment_lines": 5,
+      "blank_lines": 4,
+      "entropy": 4.617676120038169,
+      "cyclomatic_complexity": 5,
+      "cognitive_complexity": 7,
+      "max_nesting_depth": 0,
+      "function_count": 4,
+      "avg_function_length": 10.5,
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "comment_quality_score": 0.2,
+      "low_quality_comments": 3,
+      "high_quality_comments": 0,
+      "code_smells": [],
+      "maintainability_index": 60.241817798876816,
+      "halstead_volume": 262.3309737368889,
+      "halstead_difficulty": 7.0588235294117645,
+      "halstead_effort": 1851.7480499074509
+    }
+  },
+  "examples/test.scala": {
+    "hash": 532,
+    "mtime": {
+      "secs_since_epoch": 1763926812,
+      "nanos_since_epoch": 647382785
+    },
+    "size": 532,
+    "metrics": {
+      "total_lines": 27,
+      "code_lines": 12,
+      "comment_lines": 10,
+      "blank_lines": 5,
+      "entropy": 4.519042309240927,
+      "cyclomatic_complexity": 2,
+      "cognitive_complexity": 13,
+      "max_nesting_depth": 2,
+      "function_count": 4,
+      "avg_function_length": 5.0,
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "comment_quality_score": 0.5833333333333334,
+      "low_quality_comments": 0,
+      "high_quality_comments": 1,
+      "code_smells": [],
+      "maintainability_index": 59.6132694616441,
+      "halstead_volume": 475.0263282209031,
+      "halstead_difficulty": 10.666666666666666,
+      "halstead_effort": 5066.947501022966
+    }
+  },
+  "examples/test.lua": {
+    "hash": 381,
+    "mtime": {
+      "secs_since_epoch": 1763926777,
+      "nanos_since_epoch": 877812143
+    },
+    "size": 381,
+    "metrics": {
+      "total_lines": 28,
+      "code_lines": 14,
+      "comment_lines": 8,
+      "blank_lines": 6,
+      "entropy": 4.426230986243869,
+      "cyclomatic_complexity": 2,
+      "cognitive_complexity": 5,
+      "max_nesting_depth": 1,
+      "function_count": 3,
+      "avg_function_length": 8.333333333333334,
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "comment_quality_score": 0.3,
+      "low_quality_comments": 2,
+      "high_quality_comments": 0,
+      "code_smells": [],
+      "maintainability_index": 59.37580112899657,
+      "halstead_volume": 270.0,
+      "halstead_difficulty": 8.7,
+      "halstead_effort": 2349.0
+    }
+  },
+  "examples/basic_usage.rs": {
+    "hash": 1707,
+    "mtime": {
+      "secs_since_epoch": 1763913346,
+      "nanos_since_epoch": 575850047
+    },
+    "size": 1707,
+    "metrics": {
+      "total_lines": 53,
+      "code_lines": 35,
+      "comment_lines": 8,
+      "blank_lines": 10,
+      "entropy": 4.623888497121512,
+      "cyclomatic_complexity": 10,
+      "cognitive_complexity": 24,
+      "max_nesting_depth": 5,
+      "function_count": 1,
+      "avg_function_length": 46.0,
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "comment_quality_score": 0.5714285714285714,
+      "low_quality_comments": 0,
+      "high_quality_comments": 1,
+      "code_smells": [
+        {
+          "smell_type": "MagicNumber",
+          "line": 22,
+          "description": "Magic number '5' should be replaced with a named constant",
+          "severity": "Minor"
+        },
+        {
+          "smell_type": "MagicNumber",
+          "line": 31,
+          "description": "Magic number '.2' should be replaced with a named constant",
+          "severity": "Minor"
+        },
+        {
+          "smell_type": "MagicNumber",
+          "line": 45,
+          "description": "Magic number '3' should be replaced with a named constant",
+          "severity": "Minor"
+        },
+        {
+          "smell_type": "MagicNumber",
+          "line": 49,
+          "description": "Magic number '4' should be replaced with a named constant",
+          "severity": "Minor"
+        }
+      ],
+      "maintainability_index": 45.0426292672133,
+      "halstead_volume": 938.4329479894869,
+      "halstead_difficulty": 13.500000000000002,
+      "halstead_effort": 12668.844797858075
+    }
+  },
+  "examples/test.sql": {
+    "hash": 585,
+    "mtime": {
+      "secs_since_epoch": 1763926826,
+      "nanos_since_epoch": 507056220
+    },
+    "size": 585,
+    "metrics": {
+      "total_lines": 30,
+      "code_lines": 18,
+      "comment_lines": 8,
+      "blank_lines": 4,
+      "entropy": 5.1817124279320455,
+      "cyclomatic_complexity": 2,
+      "cognitive_complexity": 2,
+      "max_nesting_depth": 0,
+      "function_count": 3,
+      "avg_function_length": 13.333333333333334,
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "comment_quality_score": 0.2,
+      "low_quality_comments": 3,
+      "high_quality_comments": 0,
+      "code_smells": [],
+      "maintainability_index": 55.441247668848455,
+      "halstead_volume": 433.85639461004433,
+      "halstead_difficulty": 6.0,
+      "halstead_effort": 2603.138367660266
+    }
+  },
+  "examples/test.dart": {
+    "hash": 486,
+    "mtime": {
+      "secs_since_epoch": 1763926819,
+      "nanos_since_epoch": 437193677
+    },
+    "size": 486,
+    "metrics": {
+      "total_lines": 28,
+      "code_lines": 16,
+      "comment_lines": 7,
+      "blank_lines": 5,
+      "entropy": 4.635047246615891,
+      "cyclomatic_complexity": 3,
+      "cognitive_complexity": 9,
+      "max_nesting_depth": 2,
+      "function_count": 6,
+      "avg_function_length": 4.666666666666667,
+      "todo_count": 0,
+      "fixme_count": 0,
+      "hack_count": 0,
+      "comment_quality_score": 0.35714285714285715,
+      "low_quality_comments": 2,
+      "high_quality_comments": 0,
+      "code_smells": [
+        {
+          "smell_type": "MagicNumber",
+          "line": 27,
+          "description": "Magic number '5' should be replaced with a named constant",
+          "severity": "Minor"
+        },
+        {
+          "smell_type": "MagicNumber",
+          "line": 27,
+          "description": "Magic number '3' should be replaced with a named constant",
+          "severity": "Minor"
+        }
+      ],
+      "maintainability_index": 56.344667634728296,
+      "halstead_volume": 431.07617568587636,
+      "halstead_difficulty": 9.6,
+      "halstead_effort": 4138.331286584413
     }
   }
 }

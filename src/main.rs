@@ -7,7 +7,7 @@ use colored::Colorize;
 use rayon::prelude::*;
 
 use lucent::{
-    Config, Scanner, FileMetrics, ProjectMetrics, display_metrics,
+    Config, Scanner, FileMetrics, ProjectMetrics, display_metrics, display_metrics_with_violations,
     Snapshot, SnapshotManager, SnapshotComparison,
     ValidationResult, ThresholdViolation, Severity,
     cache::AnalysisCache,
@@ -45,7 +45,21 @@ fn handle_command(command: &lucent::config::Commands, config: &Config) -> Result
     match command {
         lucent::config::Commands::Snapshot { command } => handle_snapshot_command(command, config),
         lucent::config::Commands::Git { command } => main_git::handle_git_command(command, config),
+        lucent::config::Commands::Init { hooks, config: init_config } => {
+            cmd_init(*hooks, *init_config)
+        }
+        lucent::config::Commands::Badge { badge_format, output } => {
+            cmd_badge(config, *badge_format, output.as_deref())
+        }
+        lucent::config::Commands::Tui { watch: _ } => {
+            cmd_tui(config)
+        }
     }
+}
+
+/// Launch interactive TUI mode
+fn cmd_tui(config: &Config) -> Result<()> {
+    lucent::tui::run(&config.path)
 }
 
 /// Handle snapshot subcommands
@@ -298,6 +312,207 @@ fn cmd_snapshot_cleanup(keep: usize) -> Result<()> {
     Ok(())
 }
 
+/// Initialize project configuration and hooks
+fn cmd_init(install_hooks: bool, create_config: bool) -> Result<()> {
+    use std::fs;
+    use std::path::Path;
+
+    println!();
+    println!("💎 {} {}", "Lucent".bold().bright_white(), "Initialization".bright_cyan());
+    println!();
+
+    // If no flags provided, default to installing hooks only
+    // (most common use case, config can be created manually)
+    let install_hooks = install_hooks || !create_config;
+    let create_config = create_config;
+
+    let mut initialized = false;
+
+    // Install git hooks
+    if install_hooks {
+        let hook_path = Path::new(".git/hooks/pre-commit");
+
+        // Check if .git directory exists
+        if !Path::new(".git").exists() {
+            println!("{} Not a git repository (no .git directory found)",
+                "⚠️".yellow()
+            );
+            println!("   {}", "Skipping git hooks installation".bright_black());
+        } else {
+            // Create hooks directory if it doesn't exist
+            let hooks_dir = Path::new(".git/hooks");
+            if !hooks_dir.exists() {
+                fs::create_dir_all(hooks_dir)
+                    .context("Failed to create .git/hooks directory")?;
+            }
+
+            // Read template from embedded file
+            let template_content = include_str!("../templates/pre-commit.sh");
+
+            // Check if hook already exists
+            if hook_path.exists() {
+                println!("{} Pre-commit hook already exists at {}",
+                    "⚠️".yellow(),
+                    hook_path.display()
+                );
+                println!("   {}", "Backup the existing hook and try again".bright_black());
+            } else {
+                // Write the hook
+                fs::write(hook_path, template_content)
+                    .context("Failed to write pre-commit hook")?;
+
+                // Make it executable (Unix only)
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let mut perms = fs::metadata(hook_path)?.permissions();
+                    perms.set_mode(0o755);
+                    fs::set_permissions(hook_path, perms)?;
+                }
+
+                println!("{} Git pre-commit hook installed", "✓".green().bold());
+                println!("   {} {}", "Path:".bright_black(), hook_path.display().to_string().cyan());
+                println!("   {} Quality checks will run automatically before each commit",
+                    "Info:".bright_black()
+                );
+                initialized = true;
+            }
+        }
+        println!();
+    }
+
+    // Create config file
+    if create_config {
+        let config_path = Path::new(".lucent.toml");
+
+        if config_path.exists() {
+            println!("{} Configuration file already exists at {}",
+                "⚠️".yellow(),
+                config_path.display()
+            );
+            println!("   {}", "Remove or rename it to create a new one".bright_black());
+        } else {
+            // Create example configuration
+            let example_config = include_str!("../.lucent.toml.example");
+
+            fs::write(config_path, example_config)
+                .context("Failed to write configuration file")?;
+
+            println!("{} Configuration file created", "✓".green().bold());
+            println!("   {} {}", "Path:".bright_black(), config_path.display().to_string().cyan());
+            println!("   {} Customize thresholds and rules for your project",
+                "Info:".bright_black()
+            );
+            initialized = true;
+        }
+        println!();
+    }
+
+    if initialized {
+        println!("🎉 {} Project initialized successfully!", "Done!".green().bold());
+        println!();
+        println!("   {} Run {} to analyze your code",
+            "Next:".bright_black(),
+            "lucent analyze".cyan()
+        );
+    }
+
+    println!();
+    Ok(())
+}
+
+/// Generate quality badge
+fn cmd_badge(config: &Config, format: lucent::config::BadgeFormat, output: Option<&std::path::Path>) -> Result<()> {
+    use lucent::config::BadgeFormat;
+
+    // Run analysis to get metrics
+    let (metrics, _violations, _rules_config) = analyze_project(config)?;
+
+    // Calculate grade based on maintainability index
+    let mi = metrics.average_maintainability_index();
+    let (grade, color) = match mi {
+        90.0.. => ("A", "brightgreen"),
+        80.0..90.0 => ("B", "green"),
+        70.0..80.0 => ("C", "yellow"),
+        60.0..70.0 => ("D", "orange"),
+        _ => ("F", "red"),
+    };
+
+    match format {
+        BadgeFormat::Url => {
+            // Just output the shields.io URL
+            let url = generate_badge_url(grade, color);
+            println!("{}", url);
+        }
+        BadgeFormat::Markdown => {
+            // Output markdown badge syntax
+            let url = generate_badge_url(grade, color);
+            println!("![Code Quality]({})", url);
+        }
+        BadgeFormat::Svg => {
+            // Generate SVG file
+            let svg = generate_svg_badge(grade, color, mi);
+
+            if let Some(output_path) = output {
+                use std::fs;
+                fs::write(output_path, svg)
+                    .context("Failed to write SVG file")?;
+                println!("{} Badge saved to {}",
+                    "✓".green().bold(),
+                    output_path.display().to_string().cyan()
+                );
+            } else {
+                // No output path specified, print to stdout
+                println!("{}", svg);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Generate shields.io badge URL
+fn generate_badge_url(grade: &str, color: &str) -> String {
+    format!(
+        "https://img.shields.io/badge/code_quality-{}-{}",
+        grade, color
+    )
+}
+
+/// Generate SVG badge
+fn generate_svg_badge(grade: &str, color: &str, score: f64) -> String {
+    let fill_color = match color {
+        "brightgreen" => "#4c1",
+        "green" => "#97CA00",
+        "yellow" => "#dfb317",
+        "orange" => "#fe7d37",
+        "red" => "#e05d44",
+        _ => "#9f9f9f",
+    };
+
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="140" height="20">
+  <defs>
+    <linearGradient id="bg" x2="0" y2="100%">
+      <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+      <stop offset="1" stop-opacity=".1"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <rect width="90" height="20" fill="#555"/>
+    <rect x="90" width="50" height="20" fill="{}"/>
+    <rect width="140" height="20" fill="url(#bg)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+    <text x="45" y="14">code quality</text>
+    <text x="115" y="14" font-weight="bold">{}</text>
+  </g>
+  <title>Maintainability Index: {:.1}</title>
+</svg>"##,
+        fill_color, grade, score
+    )
+}
+
 /// Run the analysis
 fn run_analysis(config: &Config) -> Result<i32> {
     // Validate configuration
@@ -318,24 +533,32 @@ fn run_analysis(config: &Config) -> Result<i32> {
 
     // Display results
     let output_format = config.format.into();
-    display_metrics(&metrics, output_format);
+    display_metrics_with_violations(&metrics, &violations, output_format);
 
-    // Display custom rule violations if any
+    // For JSON format, violations are already included in the output, so skip plaintext display
+    let is_json = matches!(output_format, lucent::OutputFormat::Json);
+
+    // Display custom rule violations if any (skip for JSON format)
     let mut rules_exit_code = 0;
-    if !violations.is_empty() {
+    if !violations.is_empty() && !is_json {
         println!();
         rules_exit_code = display_custom_rule_violations(&violations, rules_config_opt.as_ref());
     }
 
-    // Threshold validation
+    // Threshold validation (skip display for JSON format, but still calculate exit code)
     let threshold_config = config.threshold_config();
     if threshold_config.has_thresholds() {
-        println!();
         let validation_result = threshold_config.validate(&metrics);
-        let threshold_exit_code = display_validation_result(&validation_result);
 
-        // Return non-zero if either thresholds or rules failed
-        return Ok(std::cmp::max(threshold_exit_code, rules_exit_code));
+        if !is_json {
+            println!();
+            let threshold_exit_code = display_validation_result(&validation_result);
+            return Ok(std::cmp::max(threshold_exit_code, rules_exit_code));
+        } else {
+            // For JSON, just calculate exit code without displaying
+            let threshold_exit_code = if validation_result.is_fail() { 1 } else { 0 };
+            return Ok(std::cmp::max(threshold_exit_code, rules_exit_code));
+        }
     }
 
     Ok(rules_exit_code)

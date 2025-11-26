@@ -86,6 +86,50 @@ pub enum Commands {
         #[command(subcommand)]
         command: GitCommands,
     },
+
+    /// Initialize project configuration and hooks
+    Init {
+        /// Install git pre-commit hooks
+        #[arg(long)]
+        hooks: bool,
+
+        /// Create configuration file (.lucent.toml)
+        #[arg(long)]
+        config: bool,
+    },
+
+    /// Generate quality badges for README
+    Badge {
+        /// Badge output format (url, markdown, svg)
+        #[arg(short = 't', long = "type", value_enum, default_value = "markdown")]
+        badge_format: BadgeFormat,
+
+        /// Output file path (for SVG format)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Launch interactive TUI (Terminal User Interface) mode
+    ///
+    /// An interactive terminal-based interface for exploring code metrics
+    /// with real-time navigation, sorting, filtering, and drill-down views.
+    #[command(alias = "ui")]
+    Tui {
+        /// Enable real-time file watching
+        #[arg(short, long)]
+        watch: bool,
+    },
+}
+
+/// Badge format options
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum BadgeFormat {
+    /// Raw shields.io URL
+    Url,
+    /// Markdown badge syntax
+    Markdown,
+    /// Generate SVG file
+    Svg,
 }
 
 /// Snapshot subcommands

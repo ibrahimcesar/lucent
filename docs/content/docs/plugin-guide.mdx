@@ -17,6 +17,9 @@ This guide explains how to create plugins for Lucent to extend its capabilities.
 - [Example: Tree-sitter Plugin](#example-tree-sitter-plugin)
 - [Testing Plugins](#testing-plugins)
 - [Publishing Plugins](#publishing-plugins)
+- [Dynamic Plugin Loading](#dynamic-plugin-loading)
+- [Best Practices](#best-practices)
+- [Troubleshooting](#troubleshooting)
 
 ## Overview
 
@@ -459,15 +462,259 @@ let mut registry = PluginRegistry::new();
 registry.register(Arc::new(MyAnalyzer)).unwrap();
 ```
 
+## Dynamic Plugin Loading
+
+Dynamic plugins are loaded at runtime from shared libraries (`.so` on Linux, `.dylib` on macOS, `.dll` on Windows). This allows plugins to be distributed as binary files without requiring recompilation of Lucent.
+
+### Creating a Dynamic Plugin
+
+#### 1. Create a New Library Crate
+
+```bash
+cargo new my-lucent-plugin --lib
+cd my-lucent-plugin
+```
+
+#### 2. Configure Cargo.toml
+
+```toml
+[package]
+name = "my-lucent-plugin"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]  # Required for dynamic loading
+
+[dependencies]
+lucent = "0.1"
+```
+
+#### 3. Implement DynamicPlugin Trait
+
+```rust
+use lucent::plugin::{DynamicPlugin, PluginMetadata, PluginCapability, declare_plugin};
+use lucent::metrics::FileMetrics;
+use std::path::Path;
+
+pub struct MyDynamicAnalyzer;
+
+impl DynamicPlugin for MyDynamicAnalyzer {
+    fn metadata(&self) -> PluginMetadata {
+        PluginMetadata {
+            name: "my-dynamic-analyzer".to_string(),
+            version: "0.1.0".to_string(),
+            author: "Your Name".to_string(),
+            description: "A dynamically loaded analyzer".to_string(),
+            api_version: lucent::plugin::DYNAMIC_PLUGIN_API_VERSION.to_string(),
+            capabilities: vec![
+                PluginCapability::MetricProvider(vec![
+                    "Rust".to_string(),
+                    "Python".to_string(),
+                ])
+            ],
+        }
+    }
+
+    fn supported_languages(&self) -> Vec<String> {
+        vec!["Rust".to_string(), "Python".to_string()]
+    }
+
+    fn analyze(&self, path: &Path, source: &str, language: &str) -> Option<FileMetrics> {
+        if !self.supported_languages().iter().any(|l| l == language) {
+            return None;
+        }
+
+        // Your custom analysis logic here
+        let metrics = FileMetrics {
+            // ... populate metrics ...
+            ..Default::default()
+        };
+
+        Some(metrics)
+    }
+
+    fn priority(&self) -> u32 {
+        80  // Higher than default (50) to be preferred
+    }
+
+    fn on_unload(&self) {
+        // Optional cleanup when plugin is unloaded
+        println!("MyDynamicAnalyzer unloaded");
+    }
+}
+
+// IMPORTANT: This macro exports the required C functions for dynamic loading
+declare_plugin!(MyDynamicAnalyzer, MyDynamicAnalyzer);
+```
+
+#### 4. Build the Plugin
+
+```bash
+cargo build --release
+```
+
+The compiled plugin will be in:
+- **Linux**: `target/release/libmy_lucent_plugin.so`
+- **macOS**: `target/release/libmy_lucent_plugin.dylib`
+- **Windows**: `target/release/my_lucent_plugin.dll`
+
+### Installing Dynamic Plugins
+
+Copy the compiled library to one of these directories:
+
+```bash
+# User plugins (recommended)
+~/.lucent/plugins/
+
+# System-wide plugins
+/usr/local/lib/lucent/plugins/
+
+# Project-specific plugins
+./.lucent/plugins/
+```
+
+### Loading Dynamic Plugins
+
+```rust
+use lucent::plugin::{DynamicPluginManager, PluginRegistry};
+use std::path::Path;
+use std::sync::Arc;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut manager = DynamicPluginManager::new();
+
+    // Load a single plugin
+    let plugin = manager.load(Path::new("./plugins/libmy_plugin.dylib"))?;
+    println!("Loaded: {}", plugin.metadata().name);
+
+    // Or discover all plugins in a directory
+    let discovered = manager.discover_plugins(Path::new("~/.lucent/plugins/"))?;
+    println!("Discovered {} plugins", discovered);
+
+    // Use with PluginRegistry
+    let mut registry = PluginRegistry::new();
+
+    // Convert loaded plugins to metric providers
+    for loaded in manager.loaded_plugins() {
+        // The loaded plugin can be used directly
+        let metrics = loaded.analyze(Path::new("test.rs"), "fn main() {}", "Rust");
+    }
+
+    Ok(())
+}
+```
+
+### Plugin Discovery Order
+
+When discovering plugins, Lucent searches in this order:
+
+1. `./.lucent/plugins/` - Project-specific plugins
+2. `~/.lucent/plugins/` - User plugins
+3. `/usr/local/lib/lucent/plugins/` - System plugins
+
+### The declare_plugin! Macro
+
+The `declare_plugin!` macro generates the necessary C-compatible functions for dynamic loading:
+
+```rust
+// This macro expands to:
+// - _lucent_plugin_api_version() -> returns API version string
+// - _lucent_plugin_create() -> creates and returns the plugin instance
+
+declare_plugin!(PluginType, PluginType);
+//              ^^^^^^^^^   ^^^^^^^^^
+//              The type    Constructor expression
+```
+
+### API Version Compatibility
+
+Dynamic plugins must match the Lucent API version. Check compatibility:
+
+```rust
+use lucent::plugin::DYNAMIC_PLUGIN_API_VERSION;
+
+// In your plugin
+fn metadata(&self) -> PluginMetadata {
+    PluginMetadata {
+        api_version: DYNAMIC_PLUGIN_API_VERSION.to_string(),
+        // ...
+    }
+}
+```
+
+If versions don't match, Lucent will refuse to load the plugin with a clear error message.
+
+### Dynamic Plugin Error Handling
+
+```rust
+use lucent::plugin::{DynamicPluginManager, DynamicPluginError};
+
+let mut manager = DynamicPluginManager::new();
+
+match manager.load(Path::new("./plugin.so")) {
+    Ok(plugin) => println!("Loaded: {}", plugin.metadata().name),
+    Err(DynamicPluginError::LibraryLoadFailed(path, err)) => {
+        eprintln!("Failed to load library {}: {}", path.display(), err);
+    }
+    Err(DynamicPluginError::SymbolNotFound(name)) => {
+        eprintln!("Plugin missing required symbol: {}", name);
+    }
+    Err(DynamicPluginError::ApiVersionMismatch { expected, found }) => {
+        eprintln!("API version mismatch: expected {}, found {}", expected, found);
+    }
+    Err(DynamicPluginError::PluginCreationFailed) => {
+        eprintln!("Plugin constructor returned null");
+    }
+    Err(e) => eprintln!("Error: {}", e),
+}
+```
+
+### Example: Complete Dynamic Plugin
+
+See the example plugin at `examples/plugins/example_plugin/`:
+
+```
+examples/plugins/example_plugin/
+├── Cargo.toml
+├── README.md
+└── src/
+    └── lib.rs
+```
+
+Build and test it:
+
+```bash
+cd examples/plugins/example_plugin
+cargo build --release
+
+# Copy to plugins directory
+mkdir -p ~/.lucent/plugins
+cp target/release/liblucent_example_plugin.* ~/.lucent/plugins/
+
+# Lucent will automatically discover it
+lucent analyze --verbose
+```
+
+### Security Considerations
+
+Dynamic plugins run with the same permissions as Lucent. Only load plugins from trusted sources:
+
+- Verify plugin source and author
+- Review plugin code before loading
+- Use project-specific plugins (`./.lucent/plugins/`) for untrusted plugins
+- Consider sandboxing for production environments
+
 ## Best Practices
 
-1. **API Version Compatibility** - Always use `lucent::plugin::PLUGIN_API_VERSION`
+1. **API Version Compatibility** - Always use `lucent::plugin::PLUGIN_API_VERSION` for static plugins or `DYNAMIC_PLUGIN_API_VERSION` for dynamic plugins
 2. **Error Handling** - Return `Ok(None)` for unsupported languages, `Err` for failures
 3. **Priority** - Use higher priority (>50) for better analyzers, lower (<50) for fallbacks
 4. **Thread Safety** - Implement `Send + Sync` (required by trait)
 5. **Performance** - Cache parsers/grammars in struct, don't recreate per-file
 6. **Testing** - Test with various code samples and edge cases
 7. **Documentation** - Document supported languages and limitations
+8. **Dynamic Plugins** - Always use `declare_plugin!` macro for proper FFI exports
 
 ## Troubleshooting
 
@@ -485,9 +732,11 @@ A: Cache expensive initialization (parsers, grammars) in plugin struct
 
 ## Roadmap
 
-Future plugin capabilities:
+Plugin system capabilities:
 
-- Dynamic plugin loading from shared libraries (.so, .dylib, .dll)
+- ✅ Dynamic plugin loading from shared libraries (.so, .dylib, .dll)
+- ✅ Plugin discovery from standard directories
+- ✅ API version compatibility checking
 - Plugin marketplace/registry
 - Hot-reloading during development
 - Plugin configuration via `.lucent.toml`

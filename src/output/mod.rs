@@ -26,9 +26,18 @@ pub enum OutputFormat {
 
 /// Display project metrics in the specified format
 pub fn display_metrics(metrics: &ProjectMetrics, format: OutputFormat) {
+    display_metrics_with_violations(metrics, &[], format);
+}
+
+/// Display project metrics with violations in the specified format
+pub fn display_metrics_with_violations(
+    metrics: &ProjectMetrics,
+    violations: &[crate::Violation],
+    format: OutputFormat
+) {
     match format {
         OutputFormat::Pretty => display_pretty(metrics),
-        OutputFormat::Json => display_json(metrics),
+        OutputFormat::Json => display_json_with_violations(metrics, violations),
         OutputFormat::Markdown => display_markdown(metrics),
         OutputFormat::Csv => display_csv(metrics),
         OutputFormat::Html => display_html(metrics),
@@ -396,7 +405,11 @@ fn display_insights(metrics: &ProjectMetrics) {
 
 /// Display metrics as JSON
 fn display_json(metrics: &ProjectMetrics) {
-    let json_output = JsonOutput::from(metrics);
+    display_json_with_violations(metrics, &[]);
+}
+
+fn display_json_with_violations(metrics: &ProjectMetrics, violations: &[crate::Violation]) {
+    let json_output = JsonOutput::with_violations(metrics, violations);
     match serde_json::to_string_pretty(&json_output) {
         Ok(json) => println!("{}", json),
         Err(e) => eprintln!("Error serializing JSON: {}", e),
@@ -1464,6 +1477,7 @@ struct LanguageRow {
 struct JsonOutput {
     summary: JsonSummary,
     languages: Vec<JsonLanguage>,
+    violations: Vec<crate::Violation>,
 }
 
 #[derive(Serialize)]
@@ -1525,6 +1539,15 @@ struct JsonLanguage {
     magic_numbers: usize,
     maintainability_index: f64,
     maintainability_grade: String,
+}
+
+impl JsonOutput {
+    /// Create JSON output with violations
+    fn with_violations(metrics: &ProjectMetrics, violations: &[crate::Violation]) -> Self {
+        let mut output = Self::from(metrics);
+        output.violations = violations.to_vec();
+        output
+    }
 }
 
 impl From<&ProjectMetrics> for JsonOutput {
@@ -1598,6 +1621,7 @@ impl From<&ProjectMetrics> for JsonOutput {
                 ).to_string(),
             },
             languages,
+            violations: Vec::new(),
         }
     }
 }

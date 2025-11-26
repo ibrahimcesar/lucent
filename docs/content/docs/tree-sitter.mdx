@@ -1,0 +1,467 @@
+---
+title: Tree-sitter Integration
+description: AST-based code analysis using tree-sitter for accurate metrics
+---
+
+# Tree-sitter Integration
+
+Lucent uses [tree-sitter](https://tree-sitter.github.io/tree-sitter/) for accurate AST-based code analysis. This provides more reliable metrics than regex-based parsing, especially for complex code structures.
+
+## Supported Languages
+
+Tree-sitter parsing is currently available for:
+
+| Language | Parser | Status |
+|----------|--------|--------|
+| Rust | `tree-sitter-rust` | ✅ Full support |
+| Python | `tree-sitter-python` | ✅ Full support |
+| JavaScript | `tree-sitter-javascript` | ✅ Full support |
+| TypeScript | `tree-sitter-javascript` | ✅ Full support |
+| Go | `tree-sitter-go` | ✅ Full support |
+
+## AST Analyzer
+
+The `AstAnalyzer` provides accurate metrics by parsing source code into an Abstract Syntax Tree.
+
+### Basic Usage
+
+```rust
+use lucent::{AstAnalyzer, AstFileMetrics};
+
+fn main() {
+    // Create analyzer for a specific language
+    let mut analyzer = AstAnalyzer::new("Rust").unwrap();
+
+    let source = r#"
+        fn hello(name: &str) {
+            if !name.is_empty() {
+                println!("Hello, {}!", name);
+            }
+        }
+
+        fn complex(a: i32, b: i32) -> i32 {
+            if a > 0 {
+                if b > 0 {
+                    return a + b;
+                }
+            }
+            0
+        }
+    "#;
+
+    // Analyze the source code
+    let metrics = analyzer.analyze(source).unwrap();
+
+    println!("Functions: {}", metrics.function_count);
+    println!("Cyclomatic Complexity: {}", metrics.cyclomatic_complexity);
+    println!("Cognitive Complexity: {}", metrics.cognitive_complexity);
+    println!("Max Nesting Depth: {}", metrics.max_nesting_depth);
+    println!("Max Parameters: {}", metrics.max_parameters);
+}
+```
+
+### Available Metrics
+
+The `AstFileMetrics` struct provides:
+
+| Metric | Description |
+|--------|-------------|
+| `function_count` | Number of functions/methods |
+| `total_function_lines` | Total lines in all functions |
+| `max_function_length` | Longest function in lines |
+| `avg_function_length` | Average function length |
+| `cyclomatic_complexity` | Decision point count (accurate) |
+| `cognitive_complexity` | Weighted by nesting depth (accurate) |
+| `max_nesting_depth` | Deepest nesting level |
+| `total_parameters` | Sum of all function parameters |
+| `max_parameters` | Most parameters in a single function |
+| `type_count` | Number of classes/structs/types |
+| `import_count` | Number of imports/use statements |
+
+## Custom Queries
+
+Lucent supports tree-sitter's query language for custom pattern matching.
+
+### Using Predefined Queries
+
+```rust
+use lucent::{AstAnalyzer, CommonQueries};
+
+let mut analyzer = AstAnalyzer::new("Rust").unwrap();
+let source = "fn foo() {} fn bar() {} fn baz() {}";
+
+// Count all functions
+let count = analyzer.query_count(source, CommonQueries::RUST_FUNCTIONS).unwrap();
+println!("Found {} functions", count); // Output: Found 3 functions
+```
+
+### Available Predefined Queries
+
+**Rust:**
+- `CommonQueries::RUST_FUNCTIONS` - All function definitions
+- `CommonQueries::RUST_PUBLIC_FUNCTIONS` - Public functions only
+- `CommonQueries::RUST_UNSAFE_BLOCKS` - All unsafe blocks
+- `CommonQueries::RUST_UNWRAP_CALLS` - Calls to `.unwrap()`
+
+**Python:**
+- `CommonQueries::PYTHON_FUNCTIONS` - All function definitions
+- `CommonQueries::PYTHON_CLASSES` - All class definitions
+
+**Go:**
+- `CommonQueries::GO_FUNCTIONS` - All function declarations
+- `CommonQueries::GO_DEFER` - All defer statements
+- `CommonQueries::GO_GOROUTINES` - All go statements
+
+**JavaScript/TypeScript:**
+- `CommonQueries::JS_FUNCTIONS` - Function declarations, arrows, methods
+- `CommonQueries::JS_CONSOLE_LOG` - console.log calls
+
+**General:**
+- `CommonQueries::TODO_COMMENTS` - TODO comments
+
+### Writing Custom Queries
+
+Tree-sitter queries use S-expression syntax. Here's how to write custom queries:
+
+```rust
+use lucent::AstAnalyzer;
+
+let mut analyzer = AstAnalyzer::new("Rust").unwrap();
+
+// Find all if expressions
+let if_query = "(if_expression) @if";
+let matches = analyzer.query_matches(source, if_query).unwrap();
+
+// Find all function calls
+let call_query = "(call_expression function: (identifier) @func_name)";
+let matches = analyzer.query_matches(source, call_query).unwrap();
+
+// Find match expressions with many arms
+let match_query = r#"
+    (match_expression
+        body: (match_block
+            (match_arm) @arm))
+"#;
+```
+
+### Query Match Results
+
+The `query_matches` method returns detailed match information:
+
+```rust
+pub struct QueryMatch {
+    pub capture_name: String,  // Name from @capture
+    pub text: String,          // Matched text
+    pub start_line: usize,     // 1-indexed
+    pub start_column: usize,
+    pub end_line: usize,
+    pub end_column: usize,
+}
+```
+
+## AST-Based Rules
+
+You can create custom rules using tree-sitter queries in your `.lucent.toml`:
+
+```toml
+[[rules]]
+name = "no-unsafe-blocks"
+description = "Avoid unsafe blocks in application code"
+type = "ast"
+matcher = "custom_query"
+query = "(unsafe_block) @unsafe"
+severity = "warning"
+suggestion = "Consider using safe abstractions instead"
+file_patterns = ["src/**/*.rs"]
+exclude_patterns = ["**/ffi/**", "**/bindings/**"]
+```
+
+### Built-in AST Matchers
+
+| Matcher | Description |
+|---------|-------------|
+| `FunctionWithoutDocs` | Functions missing documentation |
+| `PublicFunctionWithoutDocs` | Public functions without docs |
+| `TooManyParameters` | Functions with excessive parameters |
+| `TooManyMatchArms` | Match expressions with too many arms |
+| `DeepNesting` | Code nested beyond threshold |
+| `UnhandledResult` | Result types without proper handling |
+| `CustomQuery` | Custom tree-sitter query |
+
+### Example: Too Many Parameters Rule
+
+```toml
+[[rules]]
+name = "max-parameters"
+description = "Functions should have at most 5 parameters"
+type = "ast"
+matcher = "too_many_parameters"
+max = 5
+severity = "warning"
+suggestion = "Consider using a struct to group related parameters"
+```
+
+### Example: Deep Nesting Rule
+
+```toml
+[[rules]]
+name = "max-nesting"
+description = "Code should not be nested more than 4 levels"
+type = "ast"
+matcher = "deep_nesting"
+max_depth = 4
+severity = "warning"
+suggestion = "Extract nested logic into separate functions"
+```
+
+## Language-Specific Node Types
+
+### Rust
+
+Common node types for queries:
+- `function_item` - Function definitions
+- `impl_item` - Impl blocks
+- `struct_item` - Struct definitions
+- `enum_item` - Enum definitions
+- `if_expression` - If expressions
+- `match_expression` - Match expressions
+- `for_expression` - For loops
+- `while_expression` - While loops
+- `loop_expression` - Loop expressions
+- `unsafe_block` - Unsafe blocks
+- `call_expression` - Function calls
+
+### Python
+
+Common node types:
+- `function_definition` - Function definitions
+- `class_definition` - Class definitions
+- `if_statement` - If statements
+- `for_statement` - For loops
+- `while_statement` - While loops
+- `with_statement` - Context managers
+- `try_statement` - Try/except blocks
+
+### Go
+
+Common node types:
+- `function_declaration` - Function declarations
+- `method_declaration` - Method declarations
+- `if_statement` - If statements
+- `for_statement` - For loops
+- `select_statement` - Select statements
+- `go_statement` - Goroutine launches
+- `defer_statement` - Defer statements
+
+### JavaScript/TypeScript
+
+Common node types:
+- `function_declaration` - Named functions
+- `arrow_function` - Arrow functions
+- `method_definition` - Class methods
+- `if_statement` - If statements
+- `for_statement` - For loops
+- `while_statement` - While loops
+- `try_statement` - Try/catch blocks
+
+## Performance Considerations
+
+Tree-sitter parsing is generally fast, but for large codebases:
+
+1. **Lazy Parsing**: Only parse files when needed
+2. **Caching**: Reuse parsed trees when files haven't changed
+3. **Parallel Processing**: Lucent uses rayon for parallel file analysis
+
+### Example: Efficient Analysis
+
+```rust
+use lucent::{AstAnalyzer, Scanner};
+use rayon::prelude::*;
+
+// Scan files
+let scanner = Scanner::new(".")?;
+let files = scanner.scan()?;
+
+// Analyze in parallel (each thread gets its own analyzer)
+let results: Vec<_> = files.par_iter()
+    .filter_map(|file| {
+        let mut analyzer = AstAnalyzer::new(file.language.name)?;
+        let content = std::fs::read_to_string(&file.path).ok()?;
+        analyzer.analyze(&content)
+    })
+    .collect();
+```
+
+## Comparison: Regex vs AST
+
+| Aspect | Regex-based | AST-based |
+|--------|-------------|-----------|
+| **Speed** | Faster | Slightly slower |
+| **Accuracy** | Approximate | Exact |
+| **Edge cases** | May miss/false positive | Handles correctly |
+| **Nesting** | Basic tracking | Full depth analysis |
+| **Language support** | 20+ languages | 5 languages |
+| **Complex patterns** | Limited | Full power |
+
+### When to Use AST
+
+- Accurate complexity metrics
+- Custom semantic rules
+- Pattern matching beyond regex
+- Language-specific analysis
+
+### When Regex is Sufficient
+
+- Line counting
+- Comment detection
+- Simple pattern matching
+- Languages without tree-sitter support
+
+## Troubleshooting
+
+### Query Compilation Errors
+
+If a custom query fails to compile:
+
+```
+Warning: Failed to compile tree-sitter query: ...
+```
+
+1. Check the query syntax (S-expressions)
+2. Verify node types exist for the language
+3. Use tree-sitter playground to test queries
+4. Check capture names start with `@`
+
+### Language Not Supported
+
+If `AstAnalyzer::new()` returns `None`:
+
+- The language doesn't have a tree-sitter parser in Lucent
+- Check supported languages list above
+- Fall back to regex-based analysis
+
+### Parsing Failures
+
+If `analyze()` returns `None`:
+
+- The source code may have syntax errors
+- Tree-sitter is lenient but may fail on malformed code
+- Check the file encoding (UTF-8 required)
+
+## Caching and Performance
+
+Lucent provides caching layers for optimal performance when analyzing large codebases.
+
+### AST Cache
+
+The `AstCache` stores parsed metrics to avoid re-analyzing unchanged files:
+
+```rust
+use lucent::{AstCache, AstFileMetrics};
+use std::path::Path;
+use std::sync::Arc;
+
+// Create a shared cache
+let cache = Arc::new(AstCache::new());
+
+// Get metrics (computes on first call, caches for subsequent calls)
+let metrics = cache.get_or_compute_metrics(
+    Path::new("src/main.rs"),
+    source_code,
+    "Rust"
+);
+
+// Check cache statistics
+let stats = cache.stats();
+println!("Hit rate: {:.1}%", stats.metrics_hit_rate() * 100.0);
+```
+
+### Lazy Analyzer
+
+The `LazyAstAnalyzer` combines an analyzer with a shared cache:
+
+```rust
+use lucent::{AstCache, LazyAstAnalyzer};
+use std::sync::Arc;
+
+let cache = Arc::new(AstCache::new());
+let analyzer = LazyAstAnalyzer::new("Rust", cache.clone()).unwrap();
+
+// Analyze with automatic caching
+let metrics = analyzer.analyze(path, content);
+
+// Run queries with caching
+let matches = analyzer.query(path, content, "(function_item) @fn");
+```
+
+### Parallel Analysis
+
+For batch processing, use `ParallelAstAnalyzer`:
+
+```rust
+use lucent::ParallelAstAnalyzer;
+use std::path::PathBuf;
+
+let analyzer = ParallelAstAnalyzer::new();
+
+// Prepare batch: (path, content, language)
+let files = vec![
+    (PathBuf::from("a.rs"), source_a.to_string(), "Rust".to_string()),
+    (PathBuf::from("b.rs"), source_b.to_string(), "Rust".to_string()),
+    (PathBuf::from("c.py"), source_c.to_string(), "Python".to_string()),
+];
+
+// Analyze all files in parallel
+let results = analyzer.analyze_batch(&files);
+
+for (path, metrics) in results {
+    if let Some(m) = metrics {
+        println!("{}: {} functions", path.display(), m.function_count);
+    }
+}
+
+// Run queries in parallel
+let query_results = analyzer.query_batch(&files, "(function_item) @fn");
+```
+
+### Cache Statistics
+
+Monitor cache performance:
+
+```rust
+let stats = cache.stats();
+println!("Metrics cache:");
+println!("  Hits: {}", stats.metrics_hits);
+println!("  Misses: {}", stats.metrics_misses);
+println!("  Hit rate: {:.1}%", stats.metrics_hit_rate() * 100.0);
+
+println!("Query cache:");
+println!("  Hits: {}", stats.query_hits);
+println!("  Misses: {}", stats.query_misses);
+println!("  Hit rate: {:.1}%", stats.query_hit_rate() * 100.0);
+```
+
+### Cache Management
+
+```rust
+// Invalidate cache for a specific file
+cache.invalidate(Path::new("src/changed_file.rs"));
+
+// Clear entire cache
+cache.clear();
+
+// Check cache size
+println!("Cached entries: {}", cache.len());
+```
+
+## Future Enhancements
+
+Planned improvements for tree-sitter integration:
+
+- [ ] Additional language support (Java, C++, C#)
+- [x] AST caching for incremental analysis ✅
+- [x] Query result caching ✅
+- [x] Parallel batch analysis ✅
+- [ ] Visual AST explorer
+- [ ] Custom query library sharing
+- [ ] Persistent cache (disk-based)

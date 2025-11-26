@@ -3,6 +3,12 @@
 //! This module provides various code quality metrics including line counts,
 //! entropy, and complexity measures.
 
+pub mod ast_metrics;
+pub mod ast_cache;
+
+pub use ast_metrics::{AstAnalyzer, AstFileMetrics, CommonQueries, QueryMatch};
+pub use ast_cache::{AstCache, AstCacheEntry, CacheStats, LazyAstAnalyzer, ParallelAstAnalyzer};
+
 use anyhow::Result;
 use std::collections::HashMap;
 use std::fs;

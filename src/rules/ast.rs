@@ -95,11 +95,23 @@ impl AstRule {
             "Rust" => Some(tree_sitter_rust::language()),
             "Python" => Some(tree_sitter_python::language()),
             "JavaScript" | "TypeScript" => Some(tree_sitter_javascript::language()),
+            "Go" => Some(tree_sitter_go::language()),
             _ => None,
         }?;
 
         parser.set_language(&lang).ok()?;
         Some(parser)
+    }
+
+    /// Get tree-sitter language object for a given language name
+    pub fn get_tree_sitter_language(language_name: &str) -> Option<tree_sitter::Language> {
+        match language_name {
+            "Rust" => Some(tree_sitter_rust::language()),
+            "Python" => Some(tree_sitter_python::language()),
+            "JavaScript" | "TypeScript" => Some(tree_sitter_javascript::language()),
+            "Go" => Some(tree_sitter_go::language()),
+            _ => None,
+        }
     }
 
     /// Check if file matches patterns
@@ -297,6 +309,58 @@ impl AstRule {
         violations
     }
 
+    /// Execute a custom tree-sitter query and return matches
+    fn check_custom_query(&self, tree: &tree_sitter::Tree, source: &str, query_str: &str) -> Vec<(usize, usize, String)> {
+        let mut violations = Vec::new();
+
+        // Get the language from the tree
+        let lang = tree.language();
+
+        // Try to compile the query
+        let query = match tree_sitter::Query::new(&lang, query_str) {
+            Ok(q) => q,
+            Err(e) => {
+                eprintln!("Warning: Failed to compile tree-sitter query: {}", e);
+                return violations;
+            }
+        };
+
+        // Create a query cursor
+        let mut cursor = tree_sitter::QueryCursor::new();
+        let source_bytes = source.as_bytes();
+
+        // Execute the query
+        let matches = cursor.matches(&query, tree.root_node(), source_bytes);
+
+        for m in matches {
+            for capture in m.captures {
+                let node = capture.node;
+                let start = node.start_position();
+                let node_text = node.utf8_text(source_bytes).unwrap_or("unknown");
+
+                // Get capture name if available
+                let capture_name = query.capture_names().get(capture.index as usize)
+                    .map(|s| s.as_ref())
+                    .unwrap_or("match");
+
+                // Truncate long text for display
+                let display_text = if node_text.len() > 50 {
+                    format!("{}...", &node_text[..47])
+                } else {
+                    node_text.to_string()
+                };
+
+                violations.push((
+                    start.row + 1,
+                    start.column,
+                    format!("{}: {}", capture_name, display_text.replace('\n', " ")),
+                ));
+            }
+        }
+
+        violations
+    }
+
     /// Visit all function nodes
     fn visit_functions<F>(&self, node: Node, source: &str, callback: &mut F)
     where
@@ -443,9 +507,8 @@ impl Rule for AstRule {
             AstMatcher::UnhandledResult => {
                 self.check_unhandled_result(&tree, content)
             }
-            AstMatcher::CustomQuery { query: _ } => {
-                // TODO: Implement custom query support
-                Vec::new()
+            AstMatcher::CustomQuery { query } => {
+                self.check_custom_query(&tree, content, query)
             }
         };
 

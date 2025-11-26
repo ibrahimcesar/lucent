@@ -220,9 +220,9 @@ mod tests {
 
         let code = "let value = result.unwrap();\nlet ok = result.is_ok();";
         let file = Path::new("src/main.rs");
-        let language = Language::new("Rust");
+        let language = Language::from_extension("rs").unwrap();
 
-        let violations = rule.check(file, code, &language);
+        let violations = rule.check(file, code, language);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, 1);
         assert_eq!(violations[0].severity, Severity::Warning);

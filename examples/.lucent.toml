@@ -1,0 +1,287 @@
+# 💎 Lucent Configuration File
+# Save as .lucent.toml in your project root
+
+[thresholds]
+# Entropy thresholds (information density)
+# Low entropy: simple/repetitive code
+# High entropy: complex/dense code
+entropy_low = 3.5      # Below this = simple code
+entropy_high = 4.5     # Above this = complex code (warning)
+
+# Code density thresholds (code lines / total lines %)
+density_min = 50.0     # Minimum acceptable code density
+density_max = 70.0     # Maximum acceptable code density
+
+# Comment ratio thresholds (comment lines / total lines %)
+comments_min = 10.0    # Minimum acceptable comment ratio
+comments_max = 30.0    # Maximum acceptable comment ratio (too many comments warning)
+
+[output]
+# Default output format: "pretty" or "json"
+format = "pretty"
+
+# Show per-file metrics by default
+per_file = false
+
+# Verbose output by default
+verbose = false
+
+# Color output (can be disabled for CI/CD)
+colors = true
+
+# Show emoji in output
+emoji = true
+
+[scanning]
+# Respect .gitignore files
+respect_gitignore = true
+
+# Respect .ignore files
+respect_ignore = true
+
+# Follow symbolic links
+follow_symlinks = false
+
+# Max file size to analyze (in bytes, 0 = no limit)
+max_file_size = 1048576  # 1MB default
+
+[history]
+# Enable snapshot history tracking
+enabled = false
+
+# Directory to store snapshots
+snapshot_dir = ".lucent/history"
+
+# Number of snapshots to keep (0 = unlimited)
+max_snapshots = 100
+
+# Auto-save snapshot on each run
+auto_save = false
+
+[exclude]
+# Additional patterns to exclude (beyond .gitignore)
+patterns = [
+    "node_modules/**",
+    "target/**",
+    "dist/**",
+    "build/**",
+    "*.min.js",
+]
+
+# Directories to always skip
+directories = [
+    ".git",
+    ".svn",
+    ".hg",
+]
+
+[languages]
+# Enable/disable specific languages
+# (Future feature - currently all supported languages are enabled)
+enabled = ["rust", "python", "javascript", "typescript", "go"]
+
+[ci]
+# CI/CD mode - fail if thresholds exceeded
+enabled = false
+
+# Exit with error code if entropy too high
+fail_on_high_entropy = false
+
+# Exit with error code if density out of range
+fail_on_density = false
+
+# Exit with error code if comments too low
+fail_on_low_comments = false
+
+[rules_config]
+# Custom rules configuration
+enabled = true
+fail_on_error = true
+fail_on_warning = false
+max_violations = 0    # 0 = unlimited
+parallel = true
+
+# Example custom rules
+
+[[rules]]
+name = "no-unwrap-in-production"
+description = "Avoid .unwrap() calls in production code"
+type = "pattern"
+pattern = '\.unwrap\('
+file_patterns = ["src/**/*.rs"]
+exclude_patterns = ["**/tests/**", "**/test.rs"]
+severity = "warning"
+suggestion = "Use `?` operator or `.unwrap_or()` instead"
+
+[[rules]]
+name = "no-panic-in-lib"
+description = "Library code should not use panic!"
+type = "pattern"
+pattern = 'panic!\('
+file_patterns = ["src/**/*.rs"]
+exclude_patterns = ["src/main.rs", "**/tests/**"]
+severity = "error"
+suggestion = "Return a Result instead of panicking"
+
+[[rules]]
+name = "no-todo-comments"
+description = "TODO comments should be tracked in issues"
+type = "pattern"
+pattern = '(?i)//\s*TODO'
+severity = "info"
+suggestion = "Create a GitHub issue for this TODO"
+
+[[rules]]
+name = "no-dbg-macro"
+description = "Debug macros should not be committed"
+type = "pattern"
+pattern = 'dbg!\('
+severity = "warning"
+suggestion = "Remove debug macro or use proper logging"
+
+[[rules]]
+name = "no-println-in-lib"
+description = "Use proper logging instead of println!"
+type = "pattern"
+pattern = 'println!\('
+file_patterns = ["src/**/*.rs"]
+exclude_patterns = ["src/main.rs", "**/tests/**", "**/examples/**"]
+severity = "warning"
+suggestion = "Use a logging framework like `log` or `tracing`"
+
+# JavaScript/TypeScript examples
+
+[[rules]]
+name = "no-console-log"
+description = "Disallow console.log in production"
+type = "pattern"
+pattern = 'console\.log\('
+language = "JavaScript"
+file_patterns = ["src/**/*.js", "src/**/*.ts"]
+exclude_patterns = ["**/*.test.js", "**/*.spec.ts"]
+severity = "warning"
+suggestion = "Use a proper logging library"
+
+# Python examples
+
+[[rules]]
+name = "no-print-statements"
+description = "Use logging instead of print"
+type = "pattern"
+pattern = '\bprint\('
+language = "Python"
+file_patterns = ["**/*.py"]
+exclude_patterns = ["**/test_*.py"]
+severity = "warning"
+suggestion = "Use `logger.info()` instead"
+
+# AST-based rules (semantic analysis)
+
+[[rules]]
+name = "require-doc-comments"
+description = "Public functions must have documentation comments"
+type = "ast"
+check = "pub_fn_without_docs"
+language = "Rust"
+file_patterns = ["src/**/*.rs"]
+exclude_patterns = ["**/tests/**"]
+severity = "warning"
+suggestion = "Add a /// documentation comment"
+
+[[rules]]
+name = "max-function-parameters"
+description = "Functions should have at most 5 parameters"
+type = "ast"
+max_params = 5
+language = "Rust"
+severity = "warning"
+suggestion = "Consider using a struct for parameters"
+
+[[rules]]
+name = "document-all-functions"
+description = "All functions should have documentation"
+type = "ast"
+check = "fn_without_docs"
+language = "Rust"
+file_patterns = ["src/**/*.rs"]
+exclude_patterns = ["**/tests/**", "**/benches/**"]
+severity = "info"
+suggestion = "Add a doc comment explaining what this function does"
+
+# Additional AST rules
+
+[[rules]]
+name = "limit-match-arms"
+description = "Match expressions should not be too complex"
+type = "ast"
+max_match_arms = 10
+language = "Rust"
+severity = "warning"
+suggestion = "Consider refactoring into smaller functions or using a lookup table"
+
+[[rules]]
+name = "avoid-deep-nesting"
+description = "Avoid excessive nesting depth"
+type = "ast"
+max_nesting_depth = 4
+language = "Rust"
+severity = "warning"
+suggestion = "Extract nested logic into separate functions"
+
+[[rules]]
+name = "check-error-handling"
+description = "Results should be properly handled"
+type = "ast"
+check = "unhandled_result"
+language = "Rust"
+file_patterns = ["src/**/*.rs"]
+severity = "info"
+suggestion = "Use ? operator or handle the error explicitly"
+
+# Metric-based rules
+
+[[rules]]
+name = "complexity-threshold"
+description = "Keep cyclomatic complexity under control"
+type = "metric"
+metric = "complexity"
+max_value = 15.0
+severity = "warning"
+suggestion = "Break down complex functions into smaller ones"
+
+[[rules]]
+name = "maintainability-gate"
+description = "Ensure code maintainability"
+type = "metric"
+metric = "maintainability_index"
+min_value = 60.0
+severity = "error"
+suggestion = "Improve code quality and reduce complexity"
+
+[[rules]]
+name = "file-size-limit"
+description = "Keep files reasonably sized"
+type = "metric"
+metric = "file_size"
+max_value = 500
+severity = "warning"
+suggestion = "Consider splitting large files into smaller modules"
+
+[[rules]]
+name = "comment-coverage"
+description = "Maintain adequate code documentation"
+type = "metric"
+metric = "comment_ratio"
+min_value = 10.0
+max_value = 40.0
+severity = "info"
+suggestion = "Balance comments - too few makes code hard to understand, too many indicates overly complex code"
+
+[[rules]]
+name = "todo-debt"
+description = "Track technical debt markers"
+type = "metric"
+metric = "todo_markers"
+max_value = 5
+severity = "info"
+suggestion = "Create issues for TODOs instead of leaving them in code"
