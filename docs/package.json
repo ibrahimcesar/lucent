@@ -14,7 +14,7 @@
     "react-dom": "^18.2.0",
     "fumadocs-core": "^13.0.0",
     "fumadocs-ui": "^13.0.0",
-    "fumadocs-mdx": "^10.0.0"
+    "fumadocs-mdx": "^14.0.3"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",
